@@ -2,8 +2,6 @@ import chalk from 'chalk';
 import * as https from 'https';
 import { getActiveAccount } from './auth';
 
-const REPOS = ['1037solo-shared', 'StudySolo-Dev', 'Platform.1037Solo.com', '1037Solo-Docs', '1037Solo-LandingPage', '1037Solo-OfficeGithub'];
-
 function githubGet(path: string, token?: string): Promise<any> {
   return new Promise((resolve, reject) => {
     const options = {
@@ -45,14 +43,25 @@ export interface IssueInfo {
 export async function getRecentIssues(days: number = 7, token?: string): Promise<IssueInfo[]> {
   const activeAccount = token ? null : getActiveAccount();
   const authToken = token || activeAccount?.token || '';
-  const username = activeAccount?.username || 'AIMFllys';
+  const username = activeAccount?.username;
+
+  if (!username || !authToken) return [];
 
   const issues: IssueInfo[] = [];
   const since = new Date();
   since.setDate(since.getDate() - days);
   const sinceStr = since.toISOString().split('T')[0];
 
-  for (const repo of REPOS) {
+  // Dynamically fetch user's repos instead of hardcoded list
+  let repos: string[] = [];
+  try {
+    const repoData: any[] = await githubGet(`/users/${username}/repos?per_page=100&sort=updated`, authToken);
+    if (Array.isArray(repoData)) {
+      repos = repoData.map((r: any) => r.name);
+    }
+  } catch {}
+
+  for (const repo of repos) {
     try {
       const data: any[] = await githubGet(
         `/repos/${username}/${repo}/issues?since=${sinceStr}&state=open&per_page=20`,

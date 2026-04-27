@@ -10,7 +10,7 @@ dotenv.config();
 
 // Import modules
 import { displayAccounts, interactiveSwitch, getGhAuthCommands, getGitHubInfo } from './modules/github';
-import { getProjectPaths } from './modules/paths';
+import { getProjectPaths, ensureProjectRoot } from './modules/paths';
 import { getCliCommands, getCliByTool } from './modules/cli';
 import { getApps } from './modules/apps';
 import { startChat } from './modules/chat';
@@ -94,8 +94,9 @@ program
 
     // Project paths only
     if (opts.paths) {
+      const root = await ensureProjectRoot();
       console.log(chalk.bold('\n📁 Project Paths\n'));
-      console.log(getProjectPaths());
+      console.log(getProjectPaths(root));
       return;
     }
 
@@ -113,13 +114,16 @@ program
 ╚══════════════════════════════════════════════════════════════╝
     `));
 
+    // 0. Ensure project root is configured
+    const projectRoot = await ensureProjectRoot();
+
     // 1. GitHub Status
     console.log(chalk.bold('\n🐙 GitHub Status'));
     await getGitHubInfo({ showAccounts: true, showIssues: true });
 
     // 2. Project Paths
     console.log(chalk.bold('\n📁 Project Paths'));
-    console.log(getProjectPaths());
+    console.log(getProjectPaths(projectRoot));
 
     // 3. CLI Commands
     console.log(chalk.bold('\n⚡ CLI Auto Commands'));

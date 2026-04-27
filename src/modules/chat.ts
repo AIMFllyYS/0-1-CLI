@@ -12,6 +12,8 @@ dotenv.config();
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
 const DEFAULT_MODEL = 'deepseek-chat';
 
+const CONFIG_PATH = path.join(process.env.USERPROFILE || process.env.HOME || '.', '.coding-cli.json');
+
 interface Message {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -22,7 +24,12 @@ function getSystemPrompt(): string {
   let projects = 'Unknown';
 
   try {
-    const entries = fs.readdirSync('C:/project', { withFileTypes: true });
+    let root = 'C:/project';
+    try {
+      const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+      if (config.projectRoot) root = config.projectRoot;
+    } catch {}
+    const entries = fs.readdirSync(root, { withFileTypes: true });
     projects = entries
       .filter(e => e.isDirectory())
       .map(e => e.name)
