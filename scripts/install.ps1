@@ -1,9 +1,5 @@
 ﻿#Requires -Version 5.1
 
-if ($Host.Version.Major -le 5) {
-    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-}
-
 <#
 .SYNOPSIS
     Coding CLI 一键安装脚本
@@ -20,6 +16,10 @@ param(
     [string]$InstallDir = "",
     [switch]$SkipConfirm = $false
 )
+
+if ($Host.Version.Major -le 5) {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+}
 
 $RepoUrl      = "https://github.com/AIMFllyYS/My-Windows-CLI.git"
 $DefaultDir   = "$env:USERPROFILE\coding-cli"
@@ -147,6 +147,8 @@ Write-Host "  $stepNum. 检查并安装 Git"; $stepNum++
 Write-Host "  $stepNum. 检查并安装 Node.js (>= $MinNodeMajor)"; $stepNum++
 if (-not $isInRepo) {
     Write-Host "  $stepNum. 克隆仓库到本地"; $stepNum++
+} else {
+    Write-Host "  $stepNum. 检测本地仓库"; $stepNum++
 }
 Write-Host "  $stepNum. npm install   (安装依赖)"; $stepNum++
 Write-Host "  $stepNum. npm run build (编译 TypeScript)"; $stepNum++
