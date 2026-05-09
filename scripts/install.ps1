@@ -1,4 +1,8 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
+
+if ($Host.Version.Major -le 5) {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+}
 
 <#
 .SYNOPSIS
