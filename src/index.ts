@@ -25,7 +25,7 @@ import { getProjectPaths, ensureProjectRoot } from './modules/paths';
 import { getCliCommands, getCliByTool } from './modules/cli';
 import { getApps } from './modules/apps';
 import { startChat } from './chat';
-import { runClearA } from './modules/clear';
+import { runClear } from './modules/clear';
 
 const program = new Command();
 
@@ -35,8 +35,8 @@ program
   .version('0.6.3')
   // Basic info options
   .option('-s, --short', 'Short output (key info only)')
-  .option('-p, --paths', 'Show project paths only')
-  .option('-a, --apps', 'Show app launch commands only')
+  .option('--paths', 'Show project paths only')
+  .option('--apps', 'Show app launch commands only')
   // GitHub options
   .option('-g, --gh', 'Show GitHub accounts and issues')
   .option('--gh-accounts', 'Show GitHub accounts only')
@@ -50,12 +50,28 @@ program
   .option('-A, --ai', 'Start AI chat mode (alias for --chat)')
   .option('-m, --model <model>', 'AI model (default: deepseek-chat)')
   // Cleanup options
-  .option('--clear-a', 'AI-assisted cleanup of useless background processes')
+  .option('--clear', '启用清理模式')
+  .option('-p, --process', '清理无用后台进程（需配合 --clear）')
+  .option('-d, --drive', '清理 C 盘硬盘（需配合 --clear）')
+  .option('-a, --all', '同时进行进程和硬盘清理（需配合 --clear）')
+  .option('--clear-a', '快捷方式：同时进行进程和硬盘清理')
   // Action handler
   .action(async (opts) => {
-    // Clear-A: AI-assisted background cleanup
-    if (opts.clearA) {
-      await runClearA();
+    // Clear: unified cleanup entry
+    if (opts.clearA || (opts.clear && opts.all)) {
+      await runClear('all');
+      return;
+    }
+    if (opts.clear && opts.process) {
+      await runClear('process');
+      return;
+    }
+    if (opts.clear && opts.drive) {
+      await runClear('drive');
+      return;
+    }
+    if (opts.clear) {
+      await runClear('all');
       return;
     }
 
@@ -165,7 +181,10 @@ program
     console.log(chalk.bold.cyan('║  --apps        App launch commands                          ║'));
     console.log(chalk.bold.cyan('║  --cli <tool>  CLI commands (cc/kiro/codex/gemini/cursor) ║'));
     console.log(chalk.bold.cyan('║  --chat        AI chat mode                                ║'));
-    console.log(chalk.bold.cyan('║  --clear-a     AI-assisted cleanup of useless background    ║'));
+    console.log(chalk.bold.cyan('║  --clear -p    清理无用后台进程                            ║'));
+    console.log(chalk.bold.cyan('║  --clear -d    清理 C 盘硬盘                               ║'));
+    console.log(chalk.bold.cyan('║  --clear -a    同时进行进程和硬盘清理                      ║'));
+    console.log(chalk.bold.cyan('║  --clear-a     快捷方式：全部清理                          ║'));
     console.log(chalk.bold.cyan('╚══════════════════════════════════════════════════════════════╝\n'));
   });
 

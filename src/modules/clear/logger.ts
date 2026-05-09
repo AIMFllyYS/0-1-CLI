@@ -35,6 +35,27 @@ export interface KillResult {
   error?: string;
 }
 
+export interface DriveScanResult {
+  target: { name: string; path: string };
+  fileCount: number;
+  bytes: number;
+}
+
+export interface DriveRecommendation {
+  path: string;
+  name: string;
+  sizeMB: number;
+  reason: string;
+  safeToDelete: boolean;
+}
+
+export interface DeleteResult {
+  name: string;
+  path: string;
+  success: boolean;
+  error?: string;
+}
+
 export class ClearLogger {
   private lines: string[] = [];
   private aiRaw?: string;
@@ -73,6 +94,46 @@ export class ClearLogger {
         this.lines.push(`  ✓ ${r.name} (PID ${r.pid})`);
       } else {
         this.lines.push(`  ✗ ${r.name} (PID ${r.pid}) - ${r.error || '失败'}`);
+      }
+    }
+    this.lines.push('');
+  }
+
+  driveScan(results: DriveScanResult[]): void {
+    const totalBytes = results.reduce((s, r) => s + r.bytes, 0);
+    const totalFiles = results.reduce((s, r) => s + r.fileCount, 0);
+    this.lines.push(`[DRIVE SCAN] 发现 ${results.length} 个可扫描目录，${totalFiles} 个文件，${(totalBytes / 1024 / 1024).toFixed(1)}MB`);
+    for (const r of results) {
+      this.lines.push(`  - ${r.target.name}: ${r.fileCount} files, ${(r.bytes / 1024 / 1024).toFixed(1)}MB`);
+    }
+    this.lines.push('');
+  }
+
+  driveAiResponse(raw: string, recommendations: DriveRecommendation[]): void {
+    this.aiRaw = raw;
+    this.lines.push(`[DRIVE AI] 原始回复:\n${raw}\n`);
+    this.lines.push(`[DRIVE AI] 推荐清理 (${recommendations.length} 个):`);
+    for (const r of recommendations) {
+      this.lines.push(`  - ${r.name} (${r.path}): ${r.reason}`);
+    }
+    this.lines.push('');
+  }
+
+  driveUserConfirm(selected: DriveRecommendation[]): void {
+    this.lines.push(`[USER] 确认清理 (${selected.length} 个):`);
+    for (const s of selected) {
+      this.lines.push(`  - ${s.name} (${s.path})`);
+    }
+    this.lines.push('');
+  }
+
+  driveDeleteResults(results: DeleteResult[]): void {
+    this.lines.push(`[DELETE] 清理结果:`);
+    for (const r of results) {
+      if (r.success) {
+        this.lines.push(`  ✓ ${r.name}`);
+      } else {
+        this.lines.push(`  ✗ ${r.name} - ${r.error || '失败'}`);
       }
     }
     this.lines.push('');
