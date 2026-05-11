@@ -1,0 +1,41 @@
+# Gitleaks configuration for My-Windows-CLI
+# Run: gitleaks detect --source . --config .gitleaks.toml
+# Or use as a pre-commit hook / GitHub Action
+
+title = "My-Windows-CLI Secret Scanning Rules"
+
+[extend]
+# Use the default gitleaks rules as baseline
+useDefault = true
+
+[allowlist]
+description = "Known safe patterns"
+paths = [
+  '''.env\.example''',
+  '''package\.json''',
+  '''package-lock\.json''',
+  '''\.gitleaks\.toml''',
+]
+regexes = [
+  '''your_api_key_here''',
+  '''your_github_token_here''',
+]
+
+# Custom rules for ZhiPu / Chinese cloud providers
+[[rules]]
+id = "zhipu-api-key"
+description = "ZhiPu BigModel API Key"
+regex = '''[a-f0-9]{32}\.[A-Za-z0-9]{16}'''
+keywords = ["zhipu", "bigmodel", "glm"]
+
+[[rules]]
+id = "deepseek-api-key"
+description = "DeepSeek API Key (sk- prefix)"
+regex = '''sk-[a-zA-Z0-9]{20,}'''
+keywords = ["deepseek"]
+
+[[rules]]
+id = "aliyun-accesskey"
+description = "Alibaba Cloud AccessKey ID"
+regex = '''LTAI[a-zA-Z0-9]{12,}'''
+keywords = ["aliyun", "alibaba", "oss"]

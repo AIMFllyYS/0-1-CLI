@@ -190,7 +190,7 @@ DEEPSEEK_API_KEY=your_api_key_here
 ZHIPU_API_KEY=your_api_key_here
 
 # GitHub Token (optional, for GitHub features)
-# Can also be read from ~/project/1037Solo/StudySolo-Dev/backend/.env
+GITHUB_TOKEN=your_github_token_here
 ```
 
 ### Windows Startup

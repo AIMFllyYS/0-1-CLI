@@ -1,8 +1,7 @@
 # ================================================
-# 源代码来自乐事学长
-# C Drive Cleanup Script - 1:1 还原版
+# Source: 乐事学长 (third-party contribution)
+# C Drive Cleanup Script
 # ================================================
-# 原始文件: C:\Users\Lenovo\Downloads\clean-c-drive.ps1
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"

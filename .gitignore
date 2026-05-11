@@ -11,6 +11,14 @@ dist/
 .env.*
 !.env.example
 
+# Private keys & certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.jks
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -29,3 +37,6 @@ scripts/tmp/*
 
 # Clear-A logs
 scripts/logs/
+
+# Security scan artifacts
+replacements.txt

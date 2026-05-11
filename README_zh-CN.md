@@ -190,7 +190,7 @@ DEEPSEEK_API_KEY=your_api_key_here
 ZHIPU_API_KEY=your_api_key_here
 
 # GitHub Token（可选，用于 GitHub 功能）
-# 也可以从 ~/project/1037Solo/StudySolo-Dev/backend/.env 读取
+GITHUB_TOKEN=your_github_token_here
 ```
 
 ### 开机自启动

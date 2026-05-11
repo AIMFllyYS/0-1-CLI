@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 interface AppInfo {
   name: string;
@@ -9,11 +10,16 @@ interface AppInfo {
   description: string;
 }
 
+// Use dynamic home directory instead of hardcoded user path
+const HOME = os.homedir().replace(/\\/g, '/');
+const LOCALAPPDATA = (process.env.LOCALAPPDATA || `${HOME}/AppData/Local`).replace(/\\/g, '/');
+const APPDATA = (process.env.APPDATA || `${HOME}/AppData/Roaming`).replace(/\\/g, '/');
+
 const COMMON_APPS: AppInfo[] = [
   {
     name: 'VS Code',
     paths: [
-      'C:/Users/Lenovo/AppData/Local/Programs/Microsoft VS Code/Code.exe',
+      `${LOCALAPPDATA}/Programs/Microsoft VS Code/Code.exe`,
       'C:/Program Files/Microsoft VS Code/Code.exe'
     ],
     launchCmd: 'code .',
@@ -22,7 +28,7 @@ const COMMON_APPS: AppInfo[] = [
   {
     name: 'Cursor',
     paths: [
-      'C:/Users/Lenovo/AppData/Local/Cursor/app-*/Cursor.exe',
+      `${LOCALAPPDATA}/Cursor/app-*/Cursor.exe`,
       'C:/Program Files/Cursor/Cursor.exe'
     ],
     launchCmd: 'cursor .',
@@ -31,7 +37,7 @@ const COMMON_APPS: AppInfo[] = [
   {
     name: 'Windows Terminal',
     paths: [
-      'C:/Users/Lenovo/AppData/Local/Microsoft/WindowsApps/wt.exe',
+      `${LOCALAPPDATA}/Microsoft/WindowsApps/wt.exe`,
       'C:/Windows/System32/windowsterminal.exe'
     ],
     launchCmd: 'wt',
@@ -41,7 +47,7 @@ const COMMON_APPS: AppInfo[] = [
     name: 'Chrome',
     paths: [
       'C:/Program Files/Google/Chrome/Application/chrome.exe',
-      'C:/Users/Lenovo/AppData/Local/Google/Chrome/Application/chrome.exe'
+      `${LOCALAPPDATA}/Google/Chrome/Application/chrome.exe`
     ],
     launchCmd: 'start chrome',
     description: 'Web browser'
@@ -58,7 +64,7 @@ const COMMON_APPS: AppInfo[] = [
   {
     name: 'GitHub Desktop',
     paths: [
-      'C:/Users/Lenovo/AppData/Local/GitHubDesktop/GitHubDesktop.exe',
+      `${LOCALAPPDATA}/GitHubDesktop/GitHubDesktop.exe`,
       'C:/Program Files/GitHub Desktop/GitHubDesktop.exe'
     ],
     launchCmd: 'github',
@@ -76,7 +82,7 @@ const COMMON_APPS: AppInfo[] = [
   {
     name: 'Python',
     paths: [
-      'C:/Users/Lenovo/AppData/Local/Programs/Python/Python*/python.exe',
+      `${LOCALAPPDATA}/Programs/Python/Python*/python.exe`,
       'C:/Python*/python.exe'
     ],
     launchCmd: 'python',
@@ -85,7 +91,7 @@ const COMMON_APPS: AppInfo[] = [
   {
     name: 'Claude Code',
     paths: [
-      'C:/Users/Lenovo/AppData/Roaming/npm/claude.cmd',
+      `${APPDATA}/npm/claude.cmd`,
       'C:/Program Files/claude/bin/claude.cmd'
     ],
     launchCmd: 'claude',
