@@ -32,7 +32,7 @@ test('unhandled hi arguments print help instead of the default guide', () => {
   const orphanTask = execFileSync('node', ['dist/index.js', '--task', 'demo'], { encoding: 'utf8' });
 
   for (const output of [positional, orphanTask]) {
-    assert.match(output, /Usage: hi \[options\]/);
+    assert.match(output, /用法：hi \[选项\]/);
     assert.match(output, /--state/);
     assert.match(output, /--api/);
     assert.doesNotMatch(output, /树林曾云：从0到1是最贵的/);
@@ -64,7 +64,15 @@ test('guide chapters have distinct theme colors', () => {
 test('help exposes state, api, and pay routes', () => {
   const help = execFileSync('node', ['dist/index.js', '--help'], { encoding: 'utf8' });
 
+  assert.match(help, /用法：hi \[选项\]/);
+  assert.match(help, /选项：/);
+  assert.match(help, /显示版本号/);
+  assert.match(help, /显示帮助信息/);
+  assert.match(help, /打开新手讲解模式/);
   assert.match(help, /--state/);
   assert.match(help, /--api/);
   assert.match(help, /--pay/);
+  assert.doesNotMatch(help, /Usage: hi/);
+  assert.doesNotMatch(help, /Options:/);
+  assert.doesNotMatch(help, /display help for command/);
 });

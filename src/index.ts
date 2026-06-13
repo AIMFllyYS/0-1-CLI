@@ -34,33 +34,73 @@ import { handlePayGuide } from './modules/pay';
 const program = new Command();
 const VERSION = '0.6.15';
 
+function renderChineseHelp(): string {
+  return [
+    '用法：hi [选项]',
+    '',
+    '0-1 CLI - 新人 AI CLI 入门与本地开发工具箱',
+    '',
+    '选项：',
+    '  -V, --version             显示版本号',
+    '  -h, --help                显示帮助信息',
+    '  -s, --short               简短输出关键信息',
+    '  --state                   显示 GitHub、项目路径、CLI 指令和应用状态页',
+    '  --paths                   只显示项目路径',
+    '  --apps                    只显示常用应用启动命令',
+    '  --api                     打开模型 API 平台导航',
+    '  --pay                     打开支付、虚拟卡、代充和中转资源导航',
+    '  -g, --gh                  显示 GitHub 账号和 Issues',
+    '  --gh-accounts             只显示 GitHub 账号',
+    '  --gh-switch               交互式切换 GitHub 账号',
+    '  --gh-issues               只显示 GitHub Issues',
+    '  -c, --cli <tool>          显示 AI CLI 指令参考（cc/kiro/codex/gemini/cursor/all）',
+    '  -t, --task <description>  为 CLI 指令生成附带任务描述',
+    '  -C, --chat                启动 AI 对话模式',
+    '  -A, --ai                  启动 AI 对话模式（--chat 别名）',
+    '  -m, --model <model>       指定 AI 模型（默认 deepseek-chat）',
+    '  --install [tool]          安装 AI CLI、AI IDE 或环境工具',
+    '  --skills                  打开 skills 市场',
+    '  --clear                   启用清理模式',
+    '  -p, --process             清理无用后台进程（需配合 --clear）',
+    '  -d, --drive               清理 C 盘硬盘空间（需配合 --clear）',
+    '  -a, --all                 同时清理进程和硬盘空间（需配合 --clear）',
+    '  --clear-a                 快捷方式：同时清理进程和硬盘空间',
+    '',
+    '默认：只输入 hi 会打开新手讲解模式。',
+    '',
+  ].join('\n');
+}
+
 program
   .name('hi')
-  .description('0-1 CLI - AI CLI onboarding and development toolbox')
-  .version(VERSION)
+  .description('0-1 CLI - 新人 AI CLI 入门与本地开发工具箱')
+  .usage('[选项]')
+  .version(VERSION, '-V, --version', '显示版本号')
+  .helpOption('-h, --help', '显示帮助信息')
+  .configureHelp({ formatHelp: () => renderChineseHelp() })
   .allowUnknownOption(true)
   // Basic info options
-  .option('-s, --short', 'Short output (key info only)')
-  .option('--state', 'Show GitHub/project/app status page')
-  .option('--paths', 'Show project paths only')
-  .option('--apps', 'Show app launch commands only')
-  .option('--api', 'Open AI API provider guide')
-  .option('--pay', 'Open payment/card/relay resource guide')
+  .option('-s, --short', '简短输出关键信息')
+  .option('--state', '显示 GitHub、项目路径、CLI 指令和应用状态页')
+  .option('--paths', '只显示项目路径')
+  .option('--apps', '只显示常用应用启动命令')
+  .option('--api', '打开模型 API 平台导航')
+  .option('--pay', '打开支付、虚拟卡、代充和中转资源导航')
   // GitHub options
-  .option('-g, --gh', 'Show GitHub accounts and issues')
-  .option('--gh-accounts', 'Show GitHub accounts only')
-  .option('--gh-switch', 'Interactive GitHub account switcher')
-  .option('--gh-issues', 'Show GitHub issues only')
+  .option('-g, --gh', '显示 GitHub 账号和 Issues')
+  .option('--gh-accounts', '只显示 GitHub 账号')
+  .option('--gh-switch', '交互式切换 GitHub 账号')
+  .option('--gh-issues', '只显示 GitHub Issues')
   // CLI reference options
-  .option('-c, --cli <tool>', 'Show CLI commands (cc/kiro/codex/gemini/cursor/all)')
-  .option('-t, --task <description>', 'Task description for CLI command generation')
+  .option('-c, --cli <tool>', '显示 AI CLI 指令参考（cc/kiro/codex/gemini/cursor/all）')
+  .option('-t, --task <description>', '为 CLI 指令生成附带任务描述')
   // AI chat options
-  .option('-C, --chat', 'Start AI chat mode (interactive)')
-  .option('-A, --ai', 'Start AI chat mode (alias for --chat)')
-  .option('-m, --model <model>', 'AI model (default: deepseek-chat)')
+  .option('-C, --chat', '启动 AI 对话模式')
+  .option('-A, --ai', '启动 AI 对话模式（--chat 别名）')
+  .option('-m, --model <model>', '指定 AI 模型（默认 deepseek-chat）')
   // Installer options
-  .option('--install [tool]', 'Install AI CLI tools, AI IDEs, or environment tools')
-  .option('--skills', 'Open the skills marketplace')
+  .option('--install [tool]', '安装 AI CLI、AI IDE 或环境工具')
+  .option('--skills', '打开 skills 市场')
   // Cleanup options
   .option('--clear', '启用清理模式')
   .option('-p, --process', '清理无用后台进程（需配合 --clear）')
