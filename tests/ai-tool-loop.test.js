@@ -88,3 +88,18 @@ test('tool call runner returns permission required in agent ask mode', async () 
   assert.match(result.message.content, /permission required/i);
   assert.equal(fs.existsSync(path.join(workspaceRoot, 'out.txt')), false);
 });
+
+test('provider tool schemas are generated from the local tool registry', () => {
+  const { buildProviderToolSpecs } = require('../dist/chat/tools/registry');
+  const specs = buildProviderToolSpecs();
+  const names = specs.map((spec) => spec.function.name);
+
+  assert.ok(names.includes('read_file'));
+  assert.ok(names.includes('write_file'));
+  assert.ok(names.includes('shell'));
+  assert.ok(!names.some((name) => /login|telemetry|anthropic/i.test(name)));
+
+  const readFile = specs.find((spec) => spec.function.name === 'read_file');
+  assert.deepEqual(readFile.function.parameters.required, ['path']);
+  assert.equal(readFile.function.parameters.properties.path.type, 'string');
+});

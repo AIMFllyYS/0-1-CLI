@@ -2,7 +2,7 @@ import * as readline from 'readline';
 import chalk from 'chalk';
 import { ChatMessage, ModelInfo } from '../types';
 import { MODELS, DEFAULT_MODEL_ID, getAvailableModels, getModelById } from './models';
-import { streamChat } from './provider';
+import { chatCompleteMessage, streamChat } from './provider';
 import { webSearch } from './search';
 import { executeTool, getSystemPrompt, isToolCommand } from './tools';
 import { Spinner, printSuccess, printError, printInfo, printWarning, printDivider, StreamRenderer } from './renderer';
@@ -15,8 +15,10 @@ import { AiSessionState, createSessionState, setCurrentModel, setMode } from './
 import { ActiveRuntimeSkill, discoverRuntimeSkills, formatSkillContextMessage, formatSkillList, loadRuntimeSkillContent, resolveSkillSelection, RuntimeSkill, trimMessagesPreservingSkillContext, upsertSkillContextMessage } from './skills';
 import { createSubagentQueue, enqueueSubagent, cancelSubagent, formatSubagentList, resolveAgentCommand, runNextSubagent, setSubagentParentPermission } from './agent/subagents';
 import { SubagentQueue } from './agent/types';
-import { renderStatusHeader, renderTimelineEntry } from './ui/layout';
+import { runAgentTurn } from './agent/loop';
+import { renderPermissionBox, renderStatusHeader, renderTimelineEntry } from './ui/layout';
 import { formatPermissionDecision } from './permissions/prompts';
+import { buildProviderToolSpecs } from './tools/registry';
 
 const AI_SESSION_EXIT = '__HI_AI_SESSION_EXIT__';
 
@@ -181,9 +183,13 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
     messages.push({ role: 'user', content: input });
     foregroundBusy = true;
     try {
-      await streamAIResponse(messages, currentModel, (cancel) => {
-        activeCancel = cancel;
-      });
+      if (session.mode === 'agent') {
+        await streamAgentResponse(messages, currentModel, session);
+      } else {
+        await streamAIResponse(messages, currentModel, (cancel) => {
+          activeCancel = cancel;
+        });
+      }
     } finally {
       activeCancel = null;
       foregroundBusy = false;
@@ -684,6 +690,63 @@ async function streamAIResponse(
     spinner.stop();
     printError('API 错误: ' + e.message);
     messages.pop(); // remove failed user message
+  }
+}
+
+async function streamAgentResponse(
+  messages: ChatMessage[],
+  model: ModelInfo,
+  session: AiSessionState
+): Promise<void> {
+  const spinner = new Spinner('Agent 思考中');
+  spinner.start();
+  const userMessage = messages[messages.length - 1];
+
+  try {
+    const result = await runAgentTurn({
+      messages,
+      workspaceRoot: process.cwd(),
+      mode: session.mode,
+      permissionMode: session.permissionMode,
+      complete: (nextMessages) => chatCompleteMessage(nextMessages, model, buildProviderToolSpecs()),
+    });
+
+    spinner.stop();
+    result.toolResults.forEach((toolResult) => {
+      console.log(renderTimelineEntry({
+        kind: 'tool',
+        status: toolResult.message.content.startsWith('Error:') ? 'failed' : 'completed',
+        label: toolResult.toolCall.function.name,
+        detail: toolResult.message.content,
+      }));
+    });
+
+    if (result.status === 'permission_required') {
+      if (messages[messages.length - 1] === result.assistantMessage) {
+        messages.pop();
+      }
+      console.log(renderPermissionBox({
+        tool: result.pendingToolCall.function.name,
+        action: 'ask',
+        reason: result.permission.reason,
+      }));
+      printWarning('Agent 需要确认后才能继续执行该工具。');
+      return;
+    }
+
+    if (result.finalMessage.content) {
+      const renderer = new StreamRenderer();
+      renderer.push(result.finalMessage.content);
+      renderer.finish();
+      printDivider();
+    }
+
+    trimMessagesPreservingSkillContext(messages, 20);
+  } catch (e: any) {
+    spinner.stop();
+    printError('Agent 错误: ' + e.message);
+    const index = messages.lastIndexOf(userMessage);
+    if (index >= 0) messages.splice(index, messages.length - index);
   }
 }
 

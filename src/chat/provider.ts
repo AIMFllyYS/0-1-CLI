@@ -227,6 +227,10 @@ export function streamChat(
  * Non-streaming chat (for simple calls)
  */
 export function chatComplete(messages: ChatMessage[], model: ModelInfo, tools?: any[]): Promise<string> {
+  return chatCompleteMessage(messages, model, tools).then((message) => message.content || '');
+}
+
+export function chatCompleteMessage(messages: ChatMessage[], model: ModelInfo, tools?: any[]): Promise<ChatMessage> {
   return new Promise((resolve, reject) => {
     const provider = getProviderConfig(model);
 
@@ -237,7 +241,7 @@ export function chatComplete(messages: ChatMessage[], model: ModelInfo, tools?: 
     }
 
     const body: any = { model: provider.modelId, messages, stream: false, max_tokens: 4096 };
-    if (tools && tools.length > 0 && model.provider === 'zhipu') {
+    if (tools && tools.length > 0 && (model.provider === 'zhipu' || provider.name === 'custom')) {
       body.tools = tools;
     }
     const data = JSON.stringify(body);
@@ -264,7 +268,12 @@ export function chatComplete(messages: ChatMessage[], model: ModelInfo, tools?: 
             reject(new Error(parsed.error.message || 'API Error'));
             return;
           }
-          resolve(parsed.choices?.[0]?.message?.content || '');
+          const message = parsed.choices?.[0]?.message || {};
+          resolve({
+            role: 'assistant',
+            content: typeof message.content === 'string' ? message.content : '',
+            tool_calls: Array.isArray(message.tool_calls) ? message.tool_calls : undefined,
+          });
         } catch {
           reject(new Error('响应解析失败'));
         }

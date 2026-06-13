@@ -128,3 +128,12 @@ test('slash menu exposes mode and runtime commands', () => {
   assert.ok(agentItems.includes('/agent spawn <task>'));
   assert.ok(agentItems.includes('/skills'));
 });
+
+test('chat runtime wires agent mode through tool-call loop', () => {
+  const source = fs.readFileSync('src/chat/index.ts', 'utf8');
+
+  assert.match(source, /runAgentTurn/);
+  assert.match(source, /chatCompleteMessage/);
+  assert.match(source, /buildProviderToolSpecs/);
+  assert.match(source, /session\.mode === 'agent'/);
+});

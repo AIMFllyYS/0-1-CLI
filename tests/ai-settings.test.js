@@ -140,6 +140,57 @@ test('chatComplete supports local http providers and preserves query strings', a
   }
 });
 
+test('chatCompleteMessage returns tool calls and sends tools to custom providers', async () => {
+  let requestBody = {};
+  const server = http.createServer((req, res) => {
+    req.on('data', (chunk) => {
+      requestBody = JSON.parse(String(chunk));
+    });
+    req.on('end', () => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: '',
+            tool_calls: [{
+              id: 'call-read',
+              type: 'function',
+              function: { name: 'read_file', arguments: '{"path":"README.md"}' },
+            }],
+          },
+        }],
+      }));
+    });
+  });
+
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+
+  try {
+    await withEnv({
+      AI_BASE_URL: `http://127.0.0.1:${port}/v1`,
+      AI_API_KEY: 'local-key',
+      AI_MODEL: 'local-model',
+    }, async () => {
+      delete require.cache[require.resolve('../dist/chat/provider')];
+      const { chatCompleteMessage } = require('../dist/chat/provider');
+      const message = await chatCompleteMessage(
+        [{ role: 'user', content: 'read' }],
+        { id: 'ignored', provider: 'custom' },
+        [{ type: 'function', function: { name: 'read_file', description: 'Read a file', parameters: { type: 'object' } } }]
+      );
+
+      assert.equal(requestBody.stream, false);
+      assert.equal(requestBody.tools.length, 1);
+      assert.equal(message.role, 'assistant');
+      assert.equal(message.tool_calls[0].function.name, 'read_file');
+    });
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test('slash command helpers support direct model commands', () => {
   const { parseSlashCommand, resolveModelCommand } = require('../dist/chat/commands');
 
