@@ -26,13 +26,15 @@ import { getCliCommands, getCliByTool } from './modules/cli';
 import { getApps } from './modules/apps';
 import { startChat } from './chat';
 import { runClear } from './modules/clear';
+import { renderHomeHeader } from './modules/home';
 
 const program = new Command();
+const VERSION = '0.6.7';
 
 program
-  .name('coding')
-  .description('My-Windows-CLI - Project paths, GitHub status, CLI commands, AI chat')
-  .version('0.6.4')
+  .name('hi')
+  .description('0-1 CLI - AI CLI onboarding and development toolbox')
+  .version(VERSION)
   // Basic info options
   .option('-s, --short', 'Short output (key info only)')
   .option('--paths', 'Show project paths only')
@@ -144,11 +146,7 @@ program
     }
 
     // Full output
-    console.log(chalk.bold.cyan(`
-╔══════════════════════════════════════════════════════════════╗
-║               🤖 My-Windows-CLI v0.6.4                    ║
-╚══════════════════════════════════════════════════════════════╝
-    `));
+    console.log(renderHomeHeader(VERSION));
 
     // 0. Ensure project root is configured
     const projectRoot = await ensureProjectRoot();
@@ -171,7 +169,7 @@ program
 
     // Help footer
     console.log(chalk.bold.cyan('\n╔══════════════════════════════════════════════════════════════╗'));
-    console.log(chalk.bold.cyan('║  Usage: coding [options]                                       ║'));
+    console.log(chalk.bold.cyan('║  Usage: hi [options]                                       ║'));
     console.log(chalk.bold.cyan('╠══════════════════════════════════════════════════════════════╣'));
     console.log(chalk.bold.cyan('║  --gh          GitHub accounts + issues                       ║'));
     console.log(chalk.bold.cyan('║  --gh-accounts  GitHub accounts only                        ║'));

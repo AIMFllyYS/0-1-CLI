@@ -1,19 +1,20 @@
 {
   "name": "coding-cli",
-  "version": "0.6.6",
-  "description": "Coding quick command tool - project paths, GitHub status, CLI auto commands",
+  "version": "0.6.7",
+  "description": "0-1 CLI - AI CLI onboarding and development toolbox",
   "main": "src/index.ts",
   "bin": {
-    "coding": "./dist/index.js"
+    "hi": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",
     "clean": "node -e \"const fs=require('fs'); if(fs.existsSync('dist')) fs.rmSync('dist',{recursive:true})\"",
     "rebuild": "npm run clean && npm run build",
+    "test:phase1": "node --test tests/phase1.test.js",
     "link": "npm link",
-    "pkg": "pkg dist/index.js --targets node18-win-x64 --output dist/coding.exe"
+    "pkg": "pkg dist/index.js --targets node18-win-x64 --output dist/hi.exe"
   },
-  "keywords": ["cli", "coding", "github", "kiro", "claude"],
+  "keywords": ["cli", "hi", "zero-one", "ai-cli", "github", "kiro", "claude"],
   "license": "MIT",
   "dependencies": {
     "chalk": "^4.1.2",
