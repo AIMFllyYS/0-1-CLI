@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
+const { readFileSync } = require('node:fs');
 const test = require('node:test');
 
 execFileSync('cmd.exe', ['/c', 'npm run build --silent'], { stdio: 'pipe' });
@@ -64,6 +65,26 @@ test('resolveModeCommand supports slash mode commands', () => {
   assert.deepEqual(resolveModeCommand('/agent'), { mode: 'agent' });
   assert.deepEqual(resolveModeCommand('/plan'), { mode: 'plan' });
   assert.equal(resolveModeCommand('/model'), null);
+});
+
+test('/plan with inline text queues that text as the next user input', () => {
+  const { resolveModeCommandAction } = require('../dist/chat/modes');
+
+  assert.deepEqual(resolveModeCommandAction('/plan', '  先梳理风险，再列执行步骤  '), {
+    mode: 'plan',
+    nextInput: '先梳理风险，再列执行步骤',
+  });
+  assert.deepEqual(resolveModeCommandAction('/plan', ''), { mode: 'plan' });
+  assert.deepEqual(resolveModeCommandAction('/chat', '只切模式，不提交'), { mode: 'chat' });
+  assert.equal(resolveModeCommandAction('/model', 'info'), null);
+});
+
+test('chat loop consumes queued slash-command input before prompting again', () => {
+  const source = readFileSync('src/chat/index.ts', 'utf8');
+
+  assert.match(source, /let\s+queuedInput:\s*string\s*\|\s*null\s*=\s*null/);
+  assert.match(source, /queuedInput\s+\?\?\s+await ask\(\)/);
+  assert.match(source, /'nextInput'\s+in\s+handled/);
 });
 
 test('mode metadata and cycle mirror Claude-style footer modes', () => {

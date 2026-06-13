@@ -10,7 +10,7 @@ import { interactiveSelect } from '../utils/selector';
 import { parseAiEnv, resolveEnvPath, writeAiSettings } from './config';
 import { formatSlashMenu, parseSlashCommand, resolveModelCommand } from './commands';
 import { createInterruptController, createPendingInputController } from './interrupts';
-import { getNextMode, resolveModeCommand } from './modes';
+import { getNextMode, resolveModeCommandAction } from './modes';
 import { AiSessionState, createSessionState, setCurrentModel, setMode } from './session';
 import { ActiveRuntimeSkill, discoverRuntimeSkills, formatSkillContextMessage, formatSkillList, loadRuntimeSkillContent, resolveSkillSelection, RuntimeSkill, trimMessagesPreservingSkillContext, upsertSkillContextMessage } from './skills';
 import { createSubagentQueue, enqueueSubagent, cancelSubagent, formatSubagentList, resolveAgentCommand, runNextSubagent, setSubagentParentPermission } from './agent/subagents';
@@ -77,6 +77,7 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
   let activePromptAbort: AbortController | null = null;
   let subagentCancel: (() => void) | null = null;
   let subagentWorkerActive = false;
+  let queuedInput: string | null = null;
   const hasActiveWork = (): boolean => foregroundBusy || Boolean(subagentCancel);
   const cycleMode = () => {
     setMode(session, getNextMode(session));
@@ -170,7 +171,9 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
 
   try {
   while (!shouldExit) {
-    const input = (await ask()).trim();
+    const rawInput = queuedInput ?? await ask();
+    queuedInput = null;
+    const input = rawInput.trim();
     if (!input) continue;
 
     // === Slash Commands ===
@@ -182,6 +185,9 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
         setCurrentModel(session, currentModel.id);
         messages[0] = { role: 'system', content: buildSessionPrompt() };
         syncSkillContext();
+      }
+      if (handled instanceof Object && 'nextInput' in handled) {
+        queuedInput = handled.nextInput;
       }
       continue;
     }
@@ -237,9 +243,9 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
 
 // === Slash Command Handler ===
 
-interface CommandResult {
-  model: ModelInfo;
-}
+type CommandResult =
+  | { model: ModelInfo }
+  | { nextInput: string };
 
 interface RuntimeHooks {
   askLine: (prompt: string) => Promise<string>;
@@ -271,7 +277,7 @@ async function handleCommand(
     await handleAgentCommand(args, currentModel, session, hooks);
     return 'continue';
   }
-  const modeCommand = resolveModeCommand(cmd);
+  const modeCommand = resolveModeCommandAction(cmd, args);
   if (modeCommand) {
     setMode(session, modeCommand.mode);
     setSubagentParentPermission(hooks.subagents, session.permissionMode);
@@ -281,7 +287,7 @@ async function handleCommand(
       modelId: session.currentModelId,
     }) };
     printSuccess(`已切换到 ${session.mode} 模式`);
-    return 'continue';
+    return modeCommand.nextInput ? { nextInput: modeCommand.nextInput } : 'continue';
   }
 
   switch (cmd) {

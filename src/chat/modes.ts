@@ -5,6 +5,10 @@ export interface ModeCommand {
   mode: AiMode;
 }
 
+export interface ModeCommandAction extends ModeCommand {
+  nextInput?: string;
+}
+
 export interface ModeConfig {
   title: string;
   shortTitle: string;
@@ -43,6 +47,14 @@ export function resolveModeCommand(input: string): ModeCommand | null {
   if (command === '/agent') return { mode: 'agent' };
   if (command === '/plan') return { mode: 'plan' };
   return null;
+}
+
+export function resolveModeCommandAction(command: string, args = ''): ModeCommandAction | null {
+  const modeCommand = resolveModeCommand(command);
+  if (!modeCommand) return null;
+
+  const nextInput = modeCommand.mode === 'plan' ? args.trim() : '';
+  return nextInput ? { ...modeCommand, nextInput } : modeCommand;
 }
 
 export function getModeConfig(mode: AiMode): ModeConfig {
