@@ -28,9 +28,10 @@ import { startChat } from './chat';
 import { runClear } from './modules/clear';
 import { renderHomeHeader } from './modules/home';
 import { handleInstall, parseInstallArgs } from './modules/install';
+import { handleSkills } from './modules/skills';
 
 const program = new Command();
-const VERSION = '0.6.10';
+const VERSION = '0.6.11';
 
 program
   .name('hi')
@@ -55,6 +56,7 @@ program
   .option('-m, --model <model>', 'AI model (default: deepseek-chat)')
   // Installer options
   .option('--install [tool]', 'Install AI CLI tools, AI IDEs, or environment tools')
+  .option('--skills', 'Open the skills marketplace')
   // Cleanup options
   .option('--clear', '启用清理模式')
   .option('-p, --process', '清理无用后台进程（需配合 --clear）')
@@ -65,6 +67,10 @@ program
   .action(async (opts) => {
     if (opts.install !== undefined) {
       await handleInstall(parseInstallArgs(process.argv.slice(2)));
+      return;
+    }
+    if (opts.skills) {
+      await handleSkills();
       return;
     }
 
