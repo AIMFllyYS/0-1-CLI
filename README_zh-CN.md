@@ -1,4 +1,4 @@
-# My-Windows-CLI
+# 0-1 CLI
 
 <!-- 徽章 -->
 <div align="center">
@@ -15,7 +15,7 @@
 
 ---
 
-> 为开发者打造的强大 Windows CLI 工具，可快速获取项目路径、GitHub 状态、AI CLI 命令和交互式 AI 对话。
+> 面向开发者的跨平台 AI CLI 入门工具箱，帮助你从 0 到 1 配置 AI CLI、AI IDE、skills 和自定义 AI Provider。
 
 ## ✨ 功能特点
 
@@ -41,7 +41,20 @@ irm https://raw.githubusercontent.com/AIMFllyYS/My-Windows-CLI/master/scripts/in
 
 **备选方式（先下载到本地再执行，最可靠）：**
 ```powershell
-irm https://raw.githubusercontent.com/AIMFllyYS/My-Windows-CLI/master/scripts/install.ps1 -OutFile "$env:TEMP\install-coding-cli.ps1"; & "$env:TEMP\install-coding-cli.ps1"
+irm https://raw.githubusercontent.com/AIMFllyYS/My-Windows-CLI/master/scripts/install.ps1 -OutFile "$env:TEMP\install-hi-cli.ps1"; & "$env:TEMP\install-hi-cli.ps1"
+```
+
+**macOS / Linux：**
+```bash
+curl -fsSL https://raw.githubusercontent.com/AIMFllyYS/My-Windows-CLI/master/scripts/install.sh | bash
+```
+
+**本地源码安装（clone 后）：**
+```bash
+npm install
+npm run build
+npm link
+hi --help
 ```
 
 > 需要通过 winget 自动安装依赖时可能需要管理员权限。如果中文显示乱码，请先执行 `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8`。

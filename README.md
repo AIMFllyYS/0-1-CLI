@@ -1,4 +1,4 @@
-# My-Windows-CLI
+# 0-1 CLI
 
 <!-- Badges -->
 <div align="center">
@@ -15,7 +15,7 @@
 
 ---
 
-> A powerful Windows CLI tool for developers, providing quick access to project paths, GitHub status, AI CLI commands, and interactive AI chat.
+> A cross-platform AI CLI onboarding toolbox for developers, helping you go from 0 to 1 with AI CLI tools, IDEs, skills, and custom AI providers.
 
 ## ✨ Features
 
@@ -41,12 +41,20 @@ irm https://raw.githubusercontent.com/AIMFllyYS/My-Windows-CLI/master/scripts/in
 
 **Alternative (download to local first, most reliable):**
 ```powershell
-irm https://raw.githubusercontent.com/AIMFllyYS/My-Windows-CLI/master/scripts/install.ps1 -OutFile "$env:TEMP\install-coding-cli.ps1"; & "$env:TEMP\install-coding-cli.ps1"
+irm https://raw.githubusercontent.com/AIMFllyYS/My-Windows-CLI/master/scripts/install.ps1 -OutFile "$env:TEMP\install-hi-cli.ps1"; & "$env:TEMP\install-hi-cli.ps1"
 ```
 
 **macOS / Linux:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/AIMFllyYS/My-Windows-CLI/master/scripts/install.sh | bash
+```
+
+**Local source install (after clone):**
+```bash
+npm install
+npm run build
+npm link
+hi --help
 ```
 
 > Administrator privileges may be required for winget to install dependencies. If Chinese characters appear garbled, run `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8` first.
