@@ -192,7 +192,7 @@ test('chat runtime wires agent mode through tool-call loop', () => {
 
   assert.match(source, /runAgentTurn/);
   assert.match(source, /chatCompleteMessage/);
-  assert.match(source, /buildProviderToolSpecs/);
+  assert.match(source, /buildProviderToolSpecs\(session\.mode\)/);
   assert.match(source, /session\.mode === 'agent'/);
 });
 

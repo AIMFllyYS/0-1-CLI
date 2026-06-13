@@ -103,3 +103,13 @@ test('provider tool schemas are generated from the local tool registry', () => {
   assert.deepEqual(readFile.function.parameters.required, ['path']);
   assert.equal(readFile.function.parameters.properties.path.type, 'string');
 });
+
+test('provider tool schemas are filtered by active mode before the model sees them', () => {
+  const { buildProviderToolSpecs } = require('../dist/chat/tools/registry');
+  const namesFor = (mode) => buildProviderToolSpecs(mode).map((spec) => spec.function.name);
+
+  assert.deepEqual(namesFor('chat').sort(), ['list_files', 'read_file', 'search_files']);
+  assert.deepEqual(namesFor('plan').sort(), ['list_files', 'read_file', 'search_files']);
+  assert.ok(namesFor('agent').includes('write_file'));
+  assert.ok(namesFor('agent').includes('shell'));
+});

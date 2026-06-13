@@ -748,7 +748,7 @@ async function streamAgentResponse(
       mode: session.mode,
       permissionMode: session.permissionMode,
       session: permissionSession,
-      complete: (nextMessages) => chatCompleteMessage(nextMessages, model, buildProviderToolSpecs()),
+      complete: (nextMessages) => chatCompleteMessage(nextMessages, model, buildProviderToolSpecs(session.mode)),
     });
 
     spinner.stop();
@@ -783,7 +783,7 @@ async function streamAgentResponse(
         mode: session.mode,
         permissionMode: session.permissionMode,
         session: permissionSession,
-        complete: (nextMessages) => chatCompleteMessage(nextMessages, model, buildProviderToolSpecs()),
+        complete: (nextMessages) => chatCompleteMessage(nextMessages, model, buildProviderToolSpecs(session.mode)),
       });
 
       if (next.status === 'denied') {

@@ -139,8 +139,10 @@ function parametersForTool(name: string): ProviderToolSpec['function']['paramete
   };
 }
 
-export function buildProviderToolSpecs(): ProviderToolSpec[] {
-  return TOOL_REGISTRY.map((tool) => ({
+export function buildProviderToolSpecs(mode?: AiMode): ProviderToolSpec[] {
+  return TOOL_REGISTRY
+    .filter((tool) => !mode || tool.allowedModes.includes(mode))
+    .map((tool) => ({
     type: 'function',
     function: {
       name: tool.name,
