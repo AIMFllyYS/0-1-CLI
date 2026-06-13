@@ -235,6 +235,30 @@ test('slash prompt leaves shift-tab for global mode cycling', async () => {
   assert.equal(await pending, '/');
 });
 
+test('slash prompt applies mid-input slash completion on tab', async () => {
+  const { promptWithSlashTypeahead } = require('../dist/chat/typeahead');
+  const input = new EventEmitter();
+  input.isRaw = false;
+  input.setRawMode = () => undefined;
+  input.resume = () => undefined;
+  const output = { write: () => undefined };
+
+  const pending = promptWithSlashTypeahead({
+    prompt: '> ',
+    mode: 'agent',
+    input,
+    output,
+  });
+
+  for (const char of 'please /pla') {
+    input.emit('keypress', char, { name: undefined });
+  }
+  input.emit('keypress', undefined, { name: 'tab' });
+  input.emit('keypress', undefined, { name: 'return' });
+
+  assert.equal(await pending, 'please /plan ');
+});
+
 test('slash prompt abort cleans up keypress listener and resolves pending input', async () => {
   const { promptWithSlashTypeahead } = require('../dist/chat/typeahead');
   const input = new EventEmitter();

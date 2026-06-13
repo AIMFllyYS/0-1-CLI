@@ -317,6 +317,15 @@ export function promptWithSlashTypeahead(options: SlashPromptOptions): Promise<s
         render();
         return;
       }
+      if (key?.name === 'tab') {
+        const applied = applyMidInputSlashCompletion(value, value.length, options.mode);
+        if (applied) {
+          value = applied.input;
+          refreshState();
+          render();
+        }
+        return;
+      }
       if (key?.name === 'return') {
         if (state.active) {
           const applied = applySlashSelection(state, 'enter');
