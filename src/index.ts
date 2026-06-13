@@ -31,7 +31,7 @@ import { handleInstall, parseInstallArgs } from './modules/install';
 import { handleSkills } from './modules/skills';
 
 const program = new Command();
-const VERSION = '0.6.12';
+const VERSION = '0.6.13';
 
 program
   .name('hi')

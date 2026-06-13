@@ -82,7 +82,7 @@ cp .env.example .env
 # 编辑 .env 添加你的 API 密钥
 
 # 运行
-coding
+hi
 ```
 
 ## 📖 使用指南
@@ -91,64 +91,64 @@ coding
 
 ```bash
 # 完整输出（所有信息）
-coding
+hi
 
 # 简短输出
-coding --short
+hi --short
 
 # 仅显示特定部分
-coding --paths      # 仅项目路径
-coding --apps       # 仅应用启动命令
-coding --issues     # 仅 GitHub Issues
+hi --paths      # 仅项目路径
+hi --apps       # 仅应用启动命令
+hi --issues     # 仅 GitHub Issues
 ```
 
 ### AI CLI 参考
 
 ```bash
 # 显示所有 AI CLI 自动运行命令
-coding --cli all
+hi --cli all
 
 # 显示特定 CLI 工具命令
-coding --cli cc      # Claude Code
-coding --cli kiro    # Kiro
-coding --cli codex   # Codex
-coding --cli gemini  # Gemini
-coding --cli cursor  # Cursor
+hi --cli cc      # Claude Code
+hi --cli kiro    # Kiro
+hi --cli codex   # Codex
+hi --cli gemini  # Gemini
+hi --cli cursor  # Cursor
 
 # 带任务描述
-coding --cli cc --task "修复登录 bug"
+hi --cli cc --task "修复登录 bug"
 ```
 
 ### AI 对话模式
 
 ```bash
 # 启动交互式对话
-coding --chat
+hi --chat
 
 # 或使用别名
-coding --ai
+hi --ai
 
 # 指定模型
-coding --chat --model deepseek-chat
+hi --chat --model deepseek-chat
 ```
 
 ### 清理模式
 
 ```bash
 # AI 辅助清理无用后台进程
-coding --clear -p
-coding --clear --process
+hi --clear -p
+hi --clear --process
 
 # AI 辅助 C 盘清理
-coding --clear -d
-coding --clear --drive
+hi --clear -d
+hi --clear --drive
 
 # 同时进行进程和硬盘清理
-coding --clear -a
-coding --clear --all
+hi --clear -a
+hi --clear --all
 
 # 快捷方式
-coding --clear-a
+hi --clear-a
 ```
 
 > **清理特性**
@@ -201,7 +201,7 @@ cd scripts
 powershell -ExecutionPolicy Bypass -File create_shortcut.ps1
 
 # 手动指定路径
-powershell -ExecutionPolicy Bypass -File create_shortcut.ps1 -ExePath "C:\your\path\dist\coding.exe"
+powershell -ExecutionPolicy Bypass -File create_shortcut.ps1 -ExePath "C:\your\path\dist\hi.exe"
 ```
 
 ## 🛠️ 开发

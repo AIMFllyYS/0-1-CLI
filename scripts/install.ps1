@@ -18,7 +18,7 @@ param(
 )
 
 if ($Host.Version.Major -le 5) {
-    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    [Console]::OutputEnhi = [System.Text.Enhi]::UTF8
 }
 
 $RepoUrl      = "https://github.com/AIMFllyYS/My-Windows-CLI.git"
@@ -152,7 +152,7 @@ if (-not $isInRepo) {
 }
 Write-Host "  $stepNum. npm install   (安装依赖)"; $stepNum++
 Write-Host "  $stepNum. npm run build (编译 TypeScript)"; $stepNum++
-Write-Host "  $stepNum. npm link      (全局注册 coding 命令)"; $stepNum++
+Write-Host "  $stepNum. npm link      (全局注册 hi 命令)"; $stepNum++
 Write-Host "  $stepNum. npm run pkg   (打包为 dist\hi.exe)"; $stepNum++
 Write-Host "  $stepNum. 设置开机自启动`n"
 
@@ -306,7 +306,7 @@ if (Confirm-Step "是否执行 npm run build?") {
 
 # ──────────────── 步骤 6: npm link ────────────────
 
-Write-Header "步骤 $($script:stepNum): 全局注册 coding 命令 (npm link)"
+Write-Header "步骤 $($script:stepNum): 全局注册 hi 命令 (npm link)"
 $script:stepNum++
 if (Confirm-Step "是否执行 npm link 以全局注册 'hi' 命令?") {
     npm link
@@ -364,16 +364,16 @@ if (Confirm-Step "是否设置开机自启动 (创建启动文件夹快捷方式
 Write-Header "安装完成"
 Write-Host "安装目录: $repoRoot" -ForegroundColor Green
 
-# 尝试检测 coding 命令是否可用
-$codingAvailable = $false
-if (Test-Command coding) {
-    $codingAvailable = $true
+# 尝试检测 hi 命令是否可用
+$hiAvailable = $false
+if (Test-Command hi) {
+    $hiAvailable = $true
 } elseif (Test-Path $exePath) {
     # 至少 exe 可用
 }
 
 Write-Host "`n可用方式:" -ForegroundColor Cyan
-if ($codingAvailable) {
+if ($hiAvailable) {
     Write-Host "  hi --help        查看 CLI 帮助"
     Write-Host "  hi --chat        启动 AI 对话模式"
     Write-Host "  hi --paths       扫描项目路径"

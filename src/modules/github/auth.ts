@@ -200,7 +200,7 @@ export function displayAccounts(): void {
     console.log('');
   }
 
-  console.log(chalk.gray('  Use "coding --gh switch" to switch accounts.'));
+  console.log(chalk.gray('  Use "hi --gh switch" to switch accounts.'));
   console.log(chalk.gray('  Use "gh auth login" to add a new account.'));
   console.log(chalk.gray('  Use "gh auth logout" to remove an account.\n'));
 }

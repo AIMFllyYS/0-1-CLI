@@ -41,16 +41,16 @@ ${chalk.cyan('  gh auth logout')}
 ${chalk.cyan('  gh auth switch')}
     Switch between accounts (interactive)
 
-${chalk.green('  coding --gh')}
+${chalk.green('  hi --gh')}
     Show all GitHub accounts and recent issues
 
-${chalk.green('  coding --gh accounts')}
+${chalk.green('  hi --gh accounts')}
     Show all GitHub accounts only
 
-${chalk.green('  coding --gh switch')}
+${chalk.green('  hi --gh switch')}
     Interactive account switcher
 
-${chalk.green('  coding --gh issues')}
+${chalk.green('  hi --gh issues')}
     Show recent issues only
 `;
 }

@@ -3,10 +3,10 @@
     [string]$WorkingDir = ""
 )
 
-# 自动检测路径：如果脚本在 scripts/ 目录下，则向上查找 dist/coding.exe
+# 自动检测路径：如果脚本在 scripts/ 目录下，则向上查找 dist/hi.exe
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ([string]::IsNullOrWhiteSpace($ExePath) -and $scriptDir) {
-    $candidate = Resolve-Path (Join-Path $scriptDir "..\dist\coding.exe") -ErrorAction SilentlyContinue
+    $candidate = Resolve-Path (Join-Path $scriptDir "..\dist\hi.exe") -ErrorAction SilentlyContinue
     if ($candidate -and (Test-Path $candidate)) {
         $ExePath = $candidate
     }
@@ -14,7 +14,7 @@ if ([string]::IsNullOrWhiteSpace($ExePath) -and $scriptDir) {
 
 # 默认回退路径
 if ([string]::IsNullOrWhiteSpace($ExePath)) {
-    $ExePath = "C:\project\coding-cli\dist\coding.exe"
+    $ExePath = "C:\project\coding-cli\dist\hi.exe"
 }
 
 if ([string]::IsNullOrWhiteSpace($WorkingDir)) {
@@ -36,12 +36,12 @@ if (-not (Test-Path $startupDir)) {
 }
 
 $WshShell = New-Object -ComObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut("$startupDir\coding-cli.lnk")
+$Shortcut = $WshShell.CreateShortcut("$startupDir\hi-cli.lnk")
 $Shortcut.TargetPath = $ExePath
 $Shortcut.WorkingDirectory = $WorkingDir
-$Shortcut.Description = "Coding CLI"
+$Shortcut.Description = "0-1 CLI"
 $Shortcut.Save()
 
 Write-Host "开机自启动快捷方式已创建!" -ForegroundColor Green
-Write-Host "  路径: $startupDir\coding-cli.lnk" -ForegroundColor Gray
+Write-Host "  路径: $startupDir\hi-cli.lnk" -ForegroundColor Gray
 Write-Host "  目标: $ExePath" -ForegroundColor Gray

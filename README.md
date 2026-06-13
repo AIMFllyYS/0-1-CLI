@@ -87,7 +87,7 @@ cp .env.example .env
 # Edit .env and add your API keys
 
 # Run
-coding
+hi
 ```
 
 ## 📖 Usage
@@ -96,64 +96,64 @@ coding
 
 ```bash
 # Full output (all info)
-coding
+hi
 
 # Short output
-coding --short
+hi --short
 
 # Show only specific sections
-coding --paths      # Project paths only
-coding --apps       # App launch commands only
-coding --issues     # GitHub issues only
+hi --paths      # Project paths only
+hi --apps       # App launch commands only
+hi --issues     # GitHub issues only
 ```
 
 ### AI CLI Reference
 
 ```bash
 # Show all AI CLI auto commands
-coding --cli all
+hi --cli all
 
 # Show specific CLI tool commands
-coding --cli cc      # Claude Code
-coding --cli kiro    # Kiro
-coding --cli codex   # Codex
-coding --cli gemini  # Gemini
-coding --cli cursor  # Cursor
+hi --cli cc      # Claude Code
+hi --cli kiro    # Kiro
+hi --cli codex   # Codex
+hi --cli gemini  # Gemini
+hi --cli cursor  # Cursor
 
 # With task description
-coding --cli cc --task "Fix the login bug"
+hi --cli cc --task "Fix the login bug"
 ```
 
 ### AI Chat Mode
 
 ```bash
 # Start interactive chat
-coding --chat
+hi --chat
 
 # Or use alias
-coding --ai
+hi --ai
 
 # Specify model
-coding --chat --model deepseek-chat
+hi --chat --model deepseek-chat
 ```
 
 ### Clear Mode
 
 ```bash
 # AI-assisted useless process cleanup
-coding --clear -p
-coding --clear --process
+hi --clear -p
+hi --clear --process
 
 # AI-assisted C drive cleanup
-coding --clear -d
-coding --clear --drive
+hi --clear -d
+hi --clear --drive
 
 # Both process + drive cleanup
-coding --clear -a
-coding --clear --all
+hi --clear -a
+hi --clear --all
 
 # Shortcut
-coding --clear-a
+hi --clear-a
 ```
 
 > **Clear Features**
@@ -206,7 +206,7 @@ cd scripts
 powershell -ExecutionPolicy Bypass -File create_shortcut.ps1
 
 # Manually specify path
-powershell -ExecutionPolicy Bypass -File create_shortcut.ps1 -ExePath "C:\your\path\dist\coding.exe"
+powershell -ExecutionPolicy Bypass -File create_shortcut.ps1 -ExePath "C:\your\path\dist\hi.exe"
 ```
 
 ## 🛠️ Development
