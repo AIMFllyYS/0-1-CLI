@@ -13,6 +13,8 @@ import { createInterruptController, createPendingInputController } from './inter
 import { resolveModeCommand } from './modes';
 import { AiSessionState, createSessionState, setCurrentModel, setMode } from './session';
 import { ActiveRuntimeSkill, discoverRuntimeSkills, formatSkillContextMessage, formatSkillList, loadRuntimeSkillContent, resolveSkillSelection, RuntimeSkill, trimMessagesPreservingSkillContext, upsertSkillContextMessage } from './skills';
+import { createSubagentQueue, enqueueSubagent, cancelSubagent, formatSubagentList, resolveAgentCommand, runNextSubagent, setSubagentParentPermission } from './agent/subagents';
+import { SubagentQueue } from './agent/types';
 
 const AI_SESSION_EXIT = '__HI_AI_SESSION_EXIT__';
 
@@ -24,6 +26,7 @@ export interface StartChatOptions {
 export async function startChat(options?: string | StartChatOptions): Promise<void> {
   const startOptions = typeof options === 'string' ? { modelId: options } : (options || {});
   const session = createSessionState({ modelId: startOptions.modelId || DEFAULT_MODEL_ID, autoAccept: startOptions.autoAccept });
+  session.subagents = createSubagentQueue({ parentPermissionMode: session.permissionMode });
   let currentModel = getModelById(session.currentModelId) || MODELS[0];
   const runtimeSkills = discoverRuntimeSkills();
   const activeSkills = (): ActiveRuntimeSkill[] => runtimeSkills
@@ -41,18 +44,28 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
     return answer;
   };
   const interruptController = createInterruptController({ confirmWindowMs: 1200 });
-  let isRunning = false;
+  let foregroundBusy = false;
   let shouldExit = false;
   let activeCancel: (() => void) | null = null;
+  let subagentCancel: (() => void) | null = null;
+  let subagentWorkerActive = false;
+  const hasActiveWork = (): boolean => foregroundBusy || Boolean(subagentCancel);
   const handleInterrupt = (source: 'Ctrl+C' | 'Esc') => {
-    const result = interruptController.handle({ running: isRunning, inSubmenu: session.inSubmenu });
+    const result = interruptController.handle({ running: hasActiveWork(), inSubmenu: session.inSubmenu });
     if (result.action === 'back') {
       return;
     }
     if (result.action === 'cancel-running') {
-      activeCancel?.();
-      activeCancel = null;
-      isRunning = false;
+      if (foregroundBusy) {
+        activeCancel?.();
+        activeCancel = null;
+        foregroundBusy = false;
+      } else if (subagentCancel) {
+        subagentCancel();
+        subagentCancel = null;
+      } else {
+        foregroundBusy = false;
+      }
       printWarning('已请求取消当前操作');
       return;
     }
@@ -77,7 +90,7 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
   process.stdin.on('keypress', onKeypress);
   const runSearch = async (query: string, searchMessages: ChatMessage[], model: ModelInfo): Promise<void> => {
     const searchAbort = new AbortController();
-    isRunning = true;
+    foregroundBusy = true;
     activeCancel = () => searchAbort.abort();
     try {
       await doSearch(query, searchMessages, model, searchAbort.signal, (cancel) => {
@@ -85,10 +98,23 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
       });
     } finally {
       activeCancel = null;
-      isRunning = false;
+      foregroundBusy = false;
     }
   };
-  const hooks: RuntimeHooks = { askLine: askPrompt, runSearch, runtimeSkills, syncSkillContext };
+  const hooks: RuntimeHooks = {
+    askLine: askPrompt,
+    runSearch,
+    runtimeSkills,
+    syncSkillContext,
+    subagents: session.subagents,
+    isSubagentWorkerActive: () => subagentWorkerActive,
+    setSubagentWorkerActive: (active) => {
+      subagentWorkerActive = active;
+    },
+    setSubagentActiveWork: (cancel) => {
+      subagentCancel = cancel;
+    },
+  };
 
   // Welcome banner
   console.log('\n' + drawBox(
@@ -120,12 +146,12 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
     // === Direct Tool Commands ===
     if (isToolCommand(input)) {
       printInfo('执行工具...');
-      isRunning = true;
+      foregroundBusy = true;
       let result = '';
       try {
         result = await executeTool(input);
       } finally {
-        isRunning = false;
+        foregroundBusy = false;
       }
       console.log(chalk.gray('\n  ┌── 工具结果 ──'));
       result.split('\n').forEach(l => console.log(chalk.gray('  │ ') + chalk.white(l)));
@@ -142,14 +168,14 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
 
     // === AI Chat ===
     messages.push({ role: 'user', content: input });
-    isRunning = true;
+    foregroundBusy = true;
     try {
       await streamAIResponse(messages, currentModel, (cancel) => {
         activeCancel = cancel;
       });
     } finally {
       activeCancel = null;
-      isRunning = false;
+      foregroundBusy = false;
     }
   }
 
@@ -172,6 +198,10 @@ interface RuntimeHooks {
   runSearch: (query: string, messages: ChatMessage[], model: ModelInfo) => Promise<void>;
   runtimeSkills: RuntimeSkill[];
   syncSkillContext: () => void;
+  subagents: SubagentQueue;
+  isSubagentWorkerActive: () => boolean;
+  setSubagentWorkerActive: (active: boolean) => void;
+  setSubagentActiveWork: (cancel: (() => void) | null) => void;
 }
 
 async function handleCommand(
@@ -185,9 +215,14 @@ async function handleCommand(
   if (!parsed) return 'continue';
   const cmd = parsed.command;
   const args = parsed.args;
+  if (cmd === '/agent' && args.trim()) {
+    await handleAgentCommand(args, currentModel, session, hooks);
+    return 'continue';
+  }
   const modeCommand = resolveModeCommand(cmd);
   if (modeCommand) {
     setMode(session, modeCommand.mode);
+    setSubagentParentPermission(hooks.subagents, session.permissionMode);
     printSuccess(`已切换到 ${session.mode} 模式`);
     return 'continue';
   }
@@ -308,6 +343,102 @@ function handleSkillCommand(
   printSuccess(`已启用 skill: ${selection.skill.name}`);
 }
 
+async function handleAgentCommand(
+  args: string,
+  currentModel: ModelInfo,
+  session: AiSessionState,
+  hooks: RuntimeHooks
+): Promise<void> {
+  const command = resolveAgentCommand(args);
+  setSubagentParentPermission(hooks.subagents, session.permissionMode);
+
+  if (command.kind === 'list') {
+    console.log('');
+    console.log(chalk.bold.cyan('  Subagents'));
+    printDivider();
+    console.log(formatSubagentList(hooks.subagents));
+    return;
+  }
+
+  if (command.kind === 'cancel') {
+    if (!command.id) {
+      printWarning('用法: /agent cancel <id>');
+      return;
+    }
+    try {
+      const cancelled = cancelSubagent(hooks.subagents, command.id);
+      if (cancelled.status === 'cancelled') {
+        printWarning(`Subagent ${cancelled.id} 已取消`);
+      } else {
+        printInfo(`Subagent ${cancelled.id} 当前状态: ${cancelled.status}`);
+      }
+    } catch (error: any) {
+      printWarning(error.message);
+    }
+    return;
+  }
+
+  if (command.kind === 'spawn') {
+    if (!command.prompt) {
+      printWarning('用法: /agent spawn <任务>');
+      return;
+    }
+    const task = enqueueSubagent(hooks.subagents, {
+      prompt: command.prompt,
+      mode: session.mode === 'plan' ? 'plan' : 'agent',
+      permissionMode: session.permissionMode,
+      skillIds: session.activeSkillIds,
+      modelId: currentModel.id,
+    });
+    printInfo(`Subagent ${task.id} 已加入队列`);
+    runSubagentQueueInBackground(hooks);
+    return;
+  }
+
+  if (command.kind === 'unknown') {
+    printWarning('未知 agent 命令: ' + command.value);
+    return;
+  }
+
+  setMode(session, 'agent');
+  setSubagentParentPermission(hooks.subagents, session.permissionMode);
+  printSuccess(`已切换到 ${session.mode} 模式`);
+}
+
+function runSubagentQueueInBackground(hooks: RuntimeHooks): void {
+  if (hooks.isSubagentWorkerActive()) return;
+  hooks.setSubagentWorkerActive(true);
+
+  const loop = async (): Promise<void> => {
+    try {
+      while (hooks.subagents.items.some((item) => item.status === 'queued')) {
+        const next = hooks.subagents.items.find((item) => item.status === 'queued');
+        if (!next) break;
+        hooks.setSubagentActiveWork(() => {
+          try {
+            cancelSubagent(hooks.subagents, next.id);
+          } catch {
+            // The task may have completed between keypress and cancellation.
+          }
+        });
+        const completed = await runNextSubagent(hooks.subagents);
+        if (completed.status === 'completed') {
+          printSuccess(`Subagent ${completed.id} 完成: ${completed.result?.summary || ''}`);
+        } else if (completed.status === 'cancelled') {
+          printWarning(`Subagent ${completed.id} 已取消`);
+        } else {
+          printWarning(`Subagent ${completed.id} ${completed.status}: ${completed.error || ''}`);
+        }
+      }
+    } finally {
+      hooks.setSubagentActiveWork(null);
+      hooks.setSubagentWorkerActive(false);
+    }
+  };
+
+  void loop();
+}
+
 async function configureAiSettings(askLine: (prompt: string) => Promise<string>): Promise<void> {
   const current = parseAiEnv(process.env);
   console.log('');
@@ -343,6 +474,8 @@ function printHelp(): void {
     ['/model, /m', '切换 AI 模型'],
     ['/skills', '列出运行时 skills'],
     ['/skill <id|name>', '启用 skill，clear 清空'],
+    ['/agent spawn <task>', '启动本地 subagent'],
+    ['/agent list|cancel <id>', '查看或取消 subagent'],
     ['/search, /s <query>', '网络搜索'],
     ['/clear, /c', '清空对话历史'],
     ['/info', '当前模型信息'],

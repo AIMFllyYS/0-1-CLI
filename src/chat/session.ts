@@ -1,3 +1,5 @@
+import type { SubagentQueue } from './agent/types';
+
 export type AiMode = 'chat' | 'agent' | 'plan';
 export type PermissionMode = 'ask' | 'bypass' | 'plan';
 
@@ -13,6 +15,7 @@ export interface AiSessionState {
   autoAccept: boolean;
   inSubmenu: boolean;
   activeSkillIds: string[];
+  subagents?: SubagentQueue;
 }
 
 export function createSessionState(options: SessionOptions): AiSessionState {
