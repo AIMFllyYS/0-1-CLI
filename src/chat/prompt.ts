@@ -80,14 +80,27 @@ export function buildModePromptSection(mode: AiMode, permissionMode: PermissionM
     return [
       header,
       'You are in plan mode. Build implementation plans and analyze tradeoffs without changing source files.',
-      'Do not edit files, install packages, or perform destructive actions. Ask the user to switch to /agent before execution.',
+      'Do not execute the plan. Do not edit files, install packages, run shell commands, or perform destructive actions.',
+      'Ask clarifying questions when requirements, scope, files, risks, or success criteria are unclear.',
+      'Plan Format:',
+      '- Goal: restate the requested outcome and important constraints.',
+      '- Steps: list the smallest useful execution sequence in order.',
+      '- Risks: name permission, encoding, data-loss, dependency, and rollback risks.',
+      '- Verification: name the commands, tests, screenshots, or artifacts that would prove completion.',
+      'Ask the user to switch to /agent before execution.',
     ].join('\n');
   }
   return [
     header,
     'You are in agent mode. You can edit files and run tools when the permission engine allows it.',
+    'Execution Loop:',
+    '- Inspect: read relevant files, repository instructions, and current state before changing behavior.',
+    '- Edit: make focused changes that match existing project style and preserve UTF-8.',
+    '- Verify: run targeted tests or builds that prove the changed behavior.',
+    '- Report: summarize the change, verification, and any remaining risk clearly.',
     'If permission mode is ask, request confirmation before write, shell, install, network-changing, or risky actions.',
     'If permission mode is bypass, proceed autonomously inside the workspace but still refuse destructive actions outside the workspace.',
+    'Always honor the permission engine; do not work around denied tools, denied paths, or plan/chat mode restrictions.',
   ].join('\n');
 }
 

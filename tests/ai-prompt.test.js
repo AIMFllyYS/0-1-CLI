@@ -49,6 +49,28 @@ test('mode prompt rules keep chat read-only and plan non-mutating', () => {
   assert.match(agent, /bypass/i);
 });
 
+test('plan and agent mode prompts include Claude-style operating contracts', () => {
+  const { buildModePromptSection } = require('../dist/chat/prompt');
+
+  const plan = buildModePromptSection('plan', 'plan');
+  const agentAsk = buildModePromptSection('agent', 'ask');
+
+  assert.match(plan, /Plan Format/);
+  assert.match(plan, /Goal/);
+  assert.match(plan, /Steps/);
+  assert.match(plan, /Risks/);
+  assert.match(plan, /Verification/);
+  assert.match(plan, /Do not execute/i);
+  assert.match(plan, /ask clarifying questions/i);
+
+  assert.match(agentAsk, /Execution Loop/);
+  assert.match(agentAsk, /Inspect/);
+  assert.match(agentAsk, /Edit/);
+  assert.match(agentAsk, /Verify/);
+  assert.match(agentAsk, /Report/);
+  assert.match(agentAsk, /permission engine/i);
+});
+
 test('repo instruction loader preserves UTF-8 and bounds file size', () => {
   const { loadRepoInstructions } = require('../dist/chat/prompt');
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-prompt-repo-'));
