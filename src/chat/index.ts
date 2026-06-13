@@ -12,6 +12,7 @@ import { parseSlashCommand, resolveModelCommand } from './commands';
 import { createInterruptController, createPendingInputController } from './interrupts';
 import { resolveModeCommand } from './modes';
 import { AiSessionState, createSessionState, setCurrentModel, setMode } from './session';
+import { ActiveRuntimeSkill, discoverRuntimeSkills, formatSkillContextMessage, formatSkillList, loadRuntimeSkillContent, resolveSkillSelection, RuntimeSkill, trimMessagesPreservingSkillContext, upsertSkillContextMessage } from './skills';
 
 const AI_SESSION_EXIT = '__HI_AI_SESSION_EXIT__';
 
@@ -24,6 +25,11 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
   const startOptions = typeof options === 'string' ? { modelId: options } : (options || {});
   const session = createSessionState({ modelId: startOptions.modelId || DEFAULT_MODEL_ID, autoAccept: startOptions.autoAccept });
   let currentModel = getModelById(session.currentModelId) || MODELS[0];
+  const runtimeSkills = discoverRuntimeSkills();
+  const activeSkills = (): ActiveRuntimeSkill[] => runtimeSkills
+    .filter((skill) => session.activeSkillIds.includes(skill.id))
+    .map((skill) => loadRuntimeSkillContent(skill));
+  const syncSkillContext = (): void => upsertSkillContextMessage(messages, formatSkillContextMessage(activeSkills()));
   const messages: ChatMessage[] = [{ role: 'system', content: getSystemPrompt() }];
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -82,7 +88,7 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
       isRunning = false;
     }
   };
-  const hooks: RuntimeHooks = { askLine: askPrompt, runSearch };
+  const hooks: RuntimeHooks = { askLine: askPrompt, runSearch, runtimeSkills, syncSkillContext };
 
   // Welcome banner
   console.log('\n' + drawBox(
@@ -106,6 +112,7 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
         currentModel = handled.model;
         setCurrentModel(session, currentModel.id);
         messages[0] = { role: 'system', content: getSystemPrompt() };
+        syncSkillContext();
       }
       continue;
     }
@@ -163,6 +170,8 @@ interface CommandResult {
 interface RuntimeHooks {
   askLine: (prompt: string) => Promise<string>;
   runSearch: (query: string, messages: ChatMessage[], model: ModelInfo) => Promise<void>;
+  runtimeSkills: RuntimeSkill[];
+  syncSkillContext: () => void;
 }
 
 async function handleCommand(
@@ -226,9 +235,18 @@ async function handleCommand(
       }
       return 'continue';
 
+    case '/skills':
+      printRuntimeSkills(hooks.runtimeSkills, session.activeSkillIds);
+      return 'continue';
+
+    case '/skill':
+      handleSkillCommand(args, hooks.runtimeSkills, session, hooks.syncSkillContext);
+      return 'continue';
+
     case '/clear':
     case '/c':
       messages.length = 1; // keep system prompt
+      hooks.syncSkillContext();
       printSuccess('对话已清空');
       return 'continue';
 
@@ -249,6 +267,45 @@ async function handleCommand(
       printWarning('未知命令: ' + cmd + '，输入 /help 查看帮助');
       return 'continue';
   }
+}
+
+function printRuntimeSkills(skills: RuntimeSkill[], activeSkillIds: string[]): void {
+  console.log('');
+  console.log(chalk.bold.cyan('  Skills'));
+  printDivider();
+  console.log(formatSkillList(skills, activeSkillIds));
+  console.log('');
+}
+
+function handleSkillCommand(
+  args: string,
+  skills: RuntimeSkill[],
+  session: AiSessionState,
+  syncSkillContext: () => void
+): void {
+  if (!args.trim()) {
+    printRuntimeSkills(skills, session.activeSkillIds);
+    printInfo('用法: /skill <id|name>，/skill clear');
+    return;
+  }
+
+  const selection = resolveSkillSelection(args, skills);
+  if (selection.kind === 'clear') {
+    session.activeSkillIds = [];
+    syncSkillContext();
+    printSuccess('运行时 skills 已清空');
+    return;
+  }
+  if (selection.kind === 'missing') {
+    printWarning('未找到 skill: ' + selection.query);
+    return;
+  }
+
+  if (!session.activeSkillIds.includes(selection.skill.id)) {
+    session.activeSkillIds.push(selection.skill.id);
+  }
+  syncSkillContext();
+  printSuccess(`已启用 skill: ${selection.skill.name}`);
 }
 
 async function configureAiSettings(askLine: (prompt: string) => Promise<string>): Promise<void> {
@@ -284,6 +341,8 @@ function printHelp(): void {
   printDivider();
   const cmds = [
     ['/model, /m', '切换 AI 模型'],
+    ['/skills', '列出运行时 skills'],
+    ['/skill <id|name>', '启用 skill，clear 清空'],
     ['/search, /s <query>', '网络搜索'],
     ['/clear, /c', '清空对话历史'],
     ['/info', '当前模型信息'],
@@ -453,12 +512,7 @@ async function streamAIResponse(
 
     messages.push({ role: 'assistant', content: response });
 
-    // Trim history to prevent unbounded growth (keep system + last 19 messages)
-    if (messages.length > 20) {
-      const system = messages[0];
-      messages.splice(1, messages.length - 20);
-      if (messages[0].role !== 'system') messages.unshift(system);
-    }
+    trimMessagesPreservingSkillContext(messages, 20);
   } catch (e: any) {
     spinner.stop();
     printError('API 错误: ' + e.message);

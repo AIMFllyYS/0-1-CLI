@@ -12,6 +12,7 @@ export interface AiSessionState {
   currentModelId: string;
   autoAccept: boolean;
   inSubmenu: boolean;
+  activeSkillIds: string[];
 }
 
 export function createSessionState(options: SessionOptions): AiSessionState {
@@ -21,6 +22,7 @@ export function createSessionState(options: SessionOptions): AiSessionState {
     currentModelId: options.modelId,
     autoAccept: Boolean(options.autoAccept),
     inSubmenu: false,
+    activeSkillIds: [],
   };
 }
 
