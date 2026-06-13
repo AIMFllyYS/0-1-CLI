@@ -58,6 +58,21 @@ test('auto accept only keeps bypass in agent mode', () => {
   assert.equal(state.permissionMode, 'bypass');
 });
 
+test('plan mode stores and formats the current plan', () => {
+  const { createSessionState, formatCurrentPlan, recordCurrentPlan } = require('../dist/chat/session');
+  const state = createSessionState({ modelId: 'model-a', autoAccept: false });
+
+  assert.match(formatCurrentPlan(state), /No current plan/);
+
+  recordCurrentPlan(state, '  Goal: ship desktop release assets\nSteps:\n- verify builds  ');
+
+  assert.equal(state.currentPlan, 'Goal: ship desktop release assets\nSteps:\n- verify builds');
+  assert.match(formatCurrentPlan(state), /Goal: ship desktop release assets/);
+
+  recordCurrentPlan(state, '   ');
+  assert.equal(state.currentPlan, 'Goal: ship desktop release assets\nSteps:\n- verify builds');
+});
+
 test('resolveModeCommand supports slash mode commands', () => {
   const { resolveModeCommand } = require('../dist/chat/modes');
 
@@ -85,6 +100,14 @@ test('chat loop consumes queued slash-command input before prompting again', () 
   assert.match(source, /let\s+queuedInput:\s*string\s*\|\s*null\s*=\s*null/);
   assert.match(source, /queuedInput\s+\?\?\s+await ask\(\)/);
   assert.match(source, /'nextInput'\s+in\s+handled/);
+});
+
+test('chat loop records plan replies and lets /plan show the current plan', () => {
+  const source = readFileSync('src/chat/index.ts', 'utf8');
+
+  assert.match(source, /recordCurrentPlan\(session,\s*response\)/);
+  assert.match(source, /formatCurrentPlan\(session\)/);
+  assert.match(source, /cmd === '\/plan' && !args\.trim\(\) && session\.mode === 'plan'/);
 });
 
 test('mode metadata and cycle mirror Claude-style footer modes', () => {

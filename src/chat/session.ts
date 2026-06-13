@@ -15,6 +15,7 @@ export interface AiSessionState {
   autoAccept: boolean;
   inSubmenu: boolean;
   activeSkillIds: string[];
+  currentPlan?: string;
   subagents?: SubagentQueue;
 }
 
@@ -44,6 +45,16 @@ export function setMode(state: AiSessionState, mode: AiMode): AiSessionState {
 export function setCurrentModel(state: AiSessionState, modelId: string): AiSessionState {
   state.currentModelId = modelId;
   return state;
+}
+
+export function recordCurrentPlan(state: AiSessionState, content: string): AiSessionState {
+  const trimmed = content.trim();
+  if (trimmed) state.currentPlan = trimmed;
+  return state;
+}
+
+export function formatCurrentPlan(state: Pick<AiSessionState, 'currentPlan'>): string {
+  return state.currentPlan?.trim() || 'No current plan yet. Use /plan <task> to draft one.';
 }
 
 export function describeMode(state: AiSessionState): string {
