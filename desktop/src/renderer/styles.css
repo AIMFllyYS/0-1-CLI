@@ -205,6 +205,7 @@ input {
 .commandCard span,
 .stack p,
 .installTarget span,
+.skillPackage span,
 .confirmStrip span {
   color: #b8b0a3;
   line-height: 1.45;
@@ -219,7 +220,8 @@ input {
   font-size: 13px;
 }
 
-.installPanel {
+.installPanel,
+.skillsPanel {
   display: grid;
   gap: 14px;
 }
@@ -278,11 +280,32 @@ input {
   overflow: auto;
 }
 
-.installTarget {
+.installTarget,
+.skillPackage {
   display: grid;
   gap: 6px;
   padding: 11px;
   text-align: left;
+}
+
+.skillPackages {
+  display: grid;
+  gap: 9px;
+}
+
+.skillPackage code {
+  color: #9be7c7;
+  font-size: 12px;
+}
+
+.targetChecklist {
+  display: grid;
+  gap: 8px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid rgba(244, 240, 232, 0.12);
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .selectedTarget {

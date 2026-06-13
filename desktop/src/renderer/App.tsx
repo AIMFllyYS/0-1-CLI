@@ -14,6 +14,19 @@ type InstallTarget = {
   sourceUrl: string;
   opensUrlOnly?: boolean;
 };
+type SkillPackage = {
+  key: string;
+  displayName: string;
+  description: string;
+  sourceUrl: string;
+  sourceType: 'local' | 'git';
+};
+type SkillTarget = {
+  key: string;
+  displayName: string;
+  path: string;
+  detected: boolean;
+};
 
 declare global {
   interface Window {
@@ -23,6 +36,8 @@ declare global {
       openLatestRelease: () => Promise<{ ok: boolean; url: string; error?: string }>;
       listInstallTargets: () => Promise<InstallTarget[]>;
       runInstallTarget: (request: { key: string; latest?: boolean; confirm?: boolean }) => Promise<{ ok: boolean; output: string; requiresConfirmation?: boolean }>;
+      listSkillPackages: () => Promise<{ packages: SkillPackage[]; targets: SkillTarget[] }>;
+      installSkillPackage: (request: { skillKey: string; targetKeys: string[]; confirm?: boolean }) => Promise<{ ok: boolean; output: string; requiresConfirmation?: boolean }>;
     };
   }
 }
@@ -46,6 +61,10 @@ function App(): React.ReactElement {
   const [installCategory, setInstallCategory] = useState<InstallCategory>('cli');
   const [selectedInstallKey, setSelectedInstallKey] = useState<string | null>(null);
   const [installLatest, setInstallLatest] = useState(false);
+  const [skillPackages, setSkillPackages] = useState<SkillPackage[]>([]);
+  const [skillTargets, setSkillTargets] = useState<SkillTarget[]>([]);
+  const [selectedSkillKey, setSelectedSkillKey] = useState<string | null>(null);
+  const [selectedSkillTargets, setSelectedSkillTargets] = useState<string[]>([]);
   const [output, setOutput] = useState('Ready.');
   const [releaseStatus, setReleaseStatus] = useState('Release status not checked.');
   const modeLabel = useMemo(() => `${mode} / ${mode === 'plan' ? 'plan' : 'ask'}`, [mode]);
@@ -61,12 +80,21 @@ function App(): React.ReactElement {
 
   async function openAction(action: DesktopAction): Promise<void> {
     setActiveAction(action.id);
-    if (action.kind !== 'native-install') {
+    if (action.kind === 'cli-command') {
       await runCommand(action.command);
       return;
     }
     if (!window.zeroOneCli) {
       setOutput('Desktop bridge is unavailable in browser preview.');
+      return;
+    }
+    if (action.kind === 'native-skills') {
+      const catalog = await window.zeroOneCli.listSkillPackages();
+      setSkillPackages(catalog.packages);
+      setSkillTargets(catalog.targets);
+      setSelectedSkillKey(catalog.packages[0]?.key || null);
+      setSelectedSkillTargets(catalog.targets.filter((item) => item.detected).map((item) => item.key).slice(0, 2));
+      setOutput('Choose a skill package and targets, then confirm installation.');
       return;
     }
     const targets = await window.zeroOneCli.listInstallTargets();
@@ -86,6 +114,19 @@ function App(): React.ReactElement {
       confirm: true,
     });
     setOutput(result.output || (result.ok ? 'Install action started.' : 'Install action failed.'));
+  }
+
+  async function runSelectedSkillInstall(): Promise<void> {
+    if (!window.zeroOneCli || !selectedSkillKey) {
+      setOutput('Select a skill package first.');
+      return;
+    }
+    const result = await window.zeroOneCli.installSkillPackage({
+      skillKey: selectedSkillKey,
+      targetKeys: selectedSkillTargets,
+      confirm: true,
+    });
+    setOutput(result.output || (result.ok ? 'Skill install completed.' : 'Skill install failed.'));
   }
 
   async function checkLatestRelease(): Promise<void> {
@@ -175,7 +216,7 @@ function App(): React.ReactElement {
         </nav>
 
         <section className="panel">
-          {tab === 'tools' && activeAction !== 'install' && (
+          {tab === 'tools' && activeAction !== 'install' && activeAction !== 'skills' && (
             <div className="commandGrid">
               {desktopActions.map((card) => (
                 <button className="commandCard" key={card.id} onClick={() => void openAction(card)}>
@@ -202,6 +243,22 @@ function App(): React.ReactElement {
               onInstall={runSelectedInstall}
             />
           )}
+          {tab === 'tools' && activeAction === 'skills' && (
+            <SkillsPanel
+              packages={skillPackages}
+              targets={skillTargets}
+              selectedSkillKey={selectedSkillKey}
+              selectedTargetKeys={selectedSkillTargets}
+              onBack={() => setActiveAction(null)}
+              onSelectSkill={setSelectedSkillKey}
+              onToggleTarget={(key) => {
+                setSelectedSkillTargets((current) => current.includes(key)
+                  ? current.filter((item) => item !== key)
+                  : [...current, key]);
+              }}
+              onInstall={runSelectedSkillInstall}
+            />
+          )}
           {tab === 'plan' && <p>Plan mode is read-only. Use the CLI conversation to draft and review task plans.</p>}
           {tab === 'diff' && <p>Diff review is prepared for file-change summaries from future agent runs.</p>}
           {tab === 'preview' && <p>Preview panes can host local app/browser output in a later integration.</p>}
@@ -218,6 +275,54 @@ function App(): React.ReactElement {
         <pre className="output">{output}</pre>
       </aside>
     </main>
+  );
+}
+
+function SkillsPanel(props: {
+  packages: SkillPackage[];
+  targets: SkillTarget[];
+  selectedSkillKey: string | null;
+  selectedTargetKeys: string[];
+  onBack: () => void;
+  onSelectSkill: (key: string) => void;
+  onToggleTarget: (key: string) => void;
+  onInstall: () => void;
+}): React.ReactElement {
+  const selected = props.packages.find((item) => item.key === props.selectedSkillKey) || props.packages[0];
+
+  return (
+    <div className="skillsPanel">
+      <div className="panelHeader">
+        <div>
+          <p>native desktop action</p>
+          <h2>Skills market</h2>
+        </div>
+        <button onClick={props.onBack}>Back</button>
+      </div>
+      <div className="skillPackages">
+        {props.packages.map((skill) => (
+          <button key={skill.key} className={props.selectedSkillKey === skill.key ? 'skillPackage selectedTarget' : 'skillPackage'} onClick={() => props.onSelectSkill(skill.key)}>
+            <strong>{skill.displayName}</strong>
+            <span>{skill.description}</span>
+            <code>{skill.sourceType}</code>
+          </button>
+        ))}
+      </div>
+      <div className="targetChecklist">
+        {props.targets.map((target) => (
+          <label key={target.key} className="checkRow">
+            <input type="checkbox" checked={props.selectedTargetKeys.includes(target.key)} onChange={() => props.onToggleTarget(target.key)} />
+            <span>{target.displayName} {target.detected ? '' : '(not detected)'} · {target.path}</span>
+          </label>
+        ))}
+      </div>
+      <div className="confirmStrip">
+        <span>{selected ? selected.sourceUrl : 'No skill package selected.'}</span>
+        <button disabled={!selected || props.selectedTargetKeys.length === 0} onClick={() => void props.onInstall()}>
+          Confirm install
+        </button>
+      </div>
+    </div>
   );
 }
 

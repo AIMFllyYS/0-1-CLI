@@ -3,6 +3,7 @@ import * as path from 'path';
 import { runDesktopCli } from './cli-runner';
 import { getLatestRelease, getReleasePageUrl } from './github-release';
 import { listDesktopInstallTargets, runDesktopInstallTarget } from './install-actions';
+import { installDesktopSkillPackage, listDesktopSkillCatalog } from './skills-actions';
 
 function isAllowedRendererUrl(value: string): boolean {
   try {
@@ -77,6 +78,18 @@ app.whenReady().then(() => {
       return { ok: false, output: 'IPC sender is not trusted.' };
     }
     return runDesktopInstallTarget(request);
+  });
+  ipcMain.handle('desktop-skills:list', (event) => {
+    const senderUrl = event.senderFrame?.url || '';
+    if (!isTrustedSender(senderUrl)) return { packages: [], targets: [] };
+    return listDesktopSkillCatalog();
+  });
+  ipcMain.handle('desktop-skills:install', (event, request) => {
+    const senderUrl = event.senderFrame?.url || '';
+    if (!isTrustedSender(senderUrl)) {
+      return { ok: false, output: 'IPC sender is not trusted.' };
+    }
+    return installDesktopSkillPackage(request);
   });
   createWindow();
 
