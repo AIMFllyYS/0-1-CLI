@@ -11,7 +11,7 @@ import { parseAiEnv, resolveEnvPath, writeAiSettings } from './config';
 import { formatSlashMenu, parseSlashCommand, resolveModelCommand } from './commands';
 import { createInterruptController, createPendingInputController, formatInterruptedMessage, DEFAULT_EXIT_CONFIRM_WINDOW_MS } from './interrupts';
 import { isGlobalInterruptKey } from './keybindings';
-import { getNextMode, resolveModeCommandAction } from './modes';
+import { getNextMode, preparePlanModeSession, resolveModeCommandAction, resolvePlanApprovalOutcome } from './modes';
 import { AiSessionState, createSessionState, formatCurrentPlan, loadCurrentPlanFromWorkspace, recordCurrentPlan, setCurrentModel, setMode } from './session';
 import { ActiveRuntimeSkill, discoverRuntimeSkills, formatSkillContextMessage, formatSkillList, loadRuntimeSkillContent, resolveSkillSelection, RuntimeSkill, trimMessagesPreservingSkillContext, upsertSkillContextMessage } from './skills';
 import { createSubagentQueue, enqueueSubagent, cancelSubagent, formatSubagentList, resolveAgentCommand, runNextSubagent, setSubagentParentPermission } from './agent/subagents';
@@ -285,6 +285,7 @@ async function handleCommand(
     return 'continue';
   }
   if (cmd === '/plan' && args.trim().toLowerCase() === 'open') {
+    loadCurrentPlanFromWorkspace(session, process.cwd());
     console.log('');
     console.log(chalk.bold.cyan('  Current Plan File'));
     printDivider();
@@ -307,6 +308,9 @@ async function handleCommand(
   const modeCommand = resolveModeCommandAction(cmd, args);
   if (modeCommand) {
     setMode(session, modeCommand.mode);
+    if (modeCommand.mode === 'plan') {
+      preparePlanModeSession(session, process.cwd());
+    }
     setSubagentParentPermission(hooks.subagents, session.permissionMode);
     messages[0] = { role: 'system', content: getSystemPrompt({
       mode: session.mode,
@@ -856,13 +860,16 @@ async function handlePlanApprovalResult(input: {
     permissions: result.permissions,
   }));
   const answer = (await askLine(chalk.cyan('  Approve plan and enter agent mode? [y/N]: '))).trim().toLowerCase();
-  if (answer === 'y' || answer === 'yes') {
+  const approved = answer === 'y' || answer === 'yes';
+  const outcome = resolvePlanApprovalOutcome(approved, session);
+  if (approved) {
     messages.push({
       role: 'tool',
       tool_call_id: result.pendingToolCall.id,
       content: 'Plan approved by user. Switch to agent mode and implement the approved plan.',
     });
-    setMode(session, 'agent');
+    setMode(session, outcome.mode);
+    session.permissionMode = outcome.permissionMode;
     setSubagentParentPermission(hooks.subagents, session.permissionMode);
     messages[0] = { role: 'system', content: getSystemPrompt({
       mode: session.mode,
@@ -878,6 +885,8 @@ async function handlePlanApprovalResult(input: {
     tool_call_id: result.pendingToolCall.id,
     content: 'Plan was not approved by the user. Stay in plan mode and revise the plan.',
   });
+  setMode(session, outcome.mode);
+  session.permissionMode = outcome.permissionMode;
   printWarning('Plan not approved. Staying in plan mode.');
 }
 

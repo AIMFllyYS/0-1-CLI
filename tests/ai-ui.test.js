@@ -75,6 +75,7 @@ test('plan approval panel renders Claude-style ready-to-code review', () => {
   assert.match(output, /Yes, manually approve edits/);
   assert.match(output, /No, keep planning/);
   assert.match(output, /Plan file:/);
+  assert.match(output, /not auto-granted/i);
   assertNoMojibake(output, 'plan approval panel');
 });
 

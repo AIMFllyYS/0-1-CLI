@@ -18,3 +18,18 @@ export function readCurrentPlanFile(workspaceRoot: string): string | null {
   const content = fs.readFileSync(planPath, 'utf8').trim();
   return content || null;
 }
+
+export function ensurePlanDraftPath(workspaceRoot: string): string {
+  const planPath = getCurrentPlanPath(workspaceRoot);
+  fs.mkdirSync(path.dirname(planPath), { recursive: true });
+  if (!fs.existsSync(planPath)) {
+    fs.writeFileSync(planPath, '', 'utf8');
+  }
+  return planPath;
+}
+
+export function resolvePlanForApproval(workspaceRoot: string, toolPlan?: string): string {
+  const filePlan = readCurrentPlanFile(workspaceRoot);
+  const inlinePlan = toolPlan?.trim();
+  return filePlan || inlinePlan || '';
+}

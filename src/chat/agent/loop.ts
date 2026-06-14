@@ -1,5 +1,6 @@
 import { ChatMessage, ToolCall } from '../../types';
 import { PermissionDecision, SessionPermissionMemory } from '../permissions/engine';
+import { resolvePlanForApproval } from '../plan-store';
 import { AiMode, PermissionMode } from '../session';
 import { executeToolCall, ExecuteToolCallResult, parseToolCallArguments } from '../tools/runner';
 
@@ -52,10 +53,21 @@ function parsePlanPermissions(value: unknown): PlanPermissionRequest[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
-    .map((item) => ({
-      action: typeof item.action === 'string' ? item.action : '',
-      reason: typeof item.reason === 'string' ? item.reason : undefined,
-    }))
+    .map((item) => {
+      if (typeof item.action === 'string') {
+        return {
+          action: item.action,
+          reason: typeof item.reason === 'string' ? item.reason : undefined,
+        };
+      }
+      if (typeof item.tool === 'string' && typeof item.prompt === 'string') {
+        return {
+          action: `${item.tool}: ${item.prompt}`,
+          reason: 'requested during plan approval',
+        };
+      }
+      return { action: '', reason: undefined };
+    })
     .filter((item) => item.action.trim());
 }
 
@@ -84,7 +96,16 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<RunAgentTu
     }
 
     for (const toolCall of toolCalls) {
-      if (toolCall.function.name === 'exit_plan_mode' && input.mode === 'plan') {
+      if (toolCall.function.name === 'exit_plan_mode') {
+        if (input.mode !== 'plan') {
+          pushToolResult(input, toolResults, toolCall, {
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: 'You are not in plan mode. This tool is only for exiting plan mode after writing a plan.',
+          }, { decision: 'deny', reason: 'exit_plan_mode outside plan mode' });
+          continue;
+        }
+
         const parsed = parseToolCallArguments(toolCall);
         if (!parsed.ok) {
           pushToolResult(input, toolResults, toolCall, {
@@ -96,12 +117,14 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<RunAgentTu
         }
 
         const args = parsed.args;
+        const toolPlan = typeof args.plan === 'string' ? args.plan : undefined;
+        const permissions = parsePlanPermissions(args.permissions ?? args.allowedPrompts);
         return {
           status: 'plan_approval_required',
           pendingToolCall: toolCall,
           assistantMessage,
-          plan: typeof args.plan === 'string' ? args.plan : '',
-          permissions: parsePlanPermissions(args.permissions),
+          plan: resolvePlanForApproval(input.workspaceRoot, toolPlan),
+          permissions,
           toolResults,
         };
       }

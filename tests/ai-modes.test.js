@@ -131,6 +131,8 @@ test('plan-aware loop records plan replies and lets /plan show the current plan'
   const source = readFileSync('src/chat/index.ts', 'utf8');
 
   assert.match(source, /handlePlanApprovalResult/);
+  assert.match(source, /preparePlanModeSession\(session,\s*process\.cwd\(\)\)/);
+  assert.match(source, /resolvePlanApprovalOutcome/);
   assert.match(source, /recordCurrentPlan\(session,\s*plan,\s*\{\s*workspaceRoot:\s*process\.cwd\(\)\s*\}\)/);
   assert.match(source, /session\.mode === 'plan' && result\.finalMessage\.content/);
   assert.match(source, /recordCurrentPlan\(session,\s*result\.finalMessage\.content,\s*\{\s*workspaceRoot:\s*process\.cwd\(\)\s*\}\)/);
@@ -147,6 +149,37 @@ test('plan mode uses the tool-aware agent loop for exit plan approval', () => {
   assert.match(source, /session\.mode === 'agent' \|\| session\.mode === 'plan'/);
   assert.match(source, /result\.status === 'plan_approval_required'/);
   assert.match(source, /setMode\(session,\s*'agent'\)/);
+});
+
+test('preparePlanModeSession stores plan draft path when entering plan mode', () => {
+  const { createSessionState } = require('../dist/chat/session');
+  const { preparePlanModeSession } = require('../dist/chat/modes');
+  const { getCurrentPlanPath } = require('../dist/chat/plan-store');
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-plan-mode-entry-'));
+  const state = createSessionState({ modelId: 'model-a', autoAccept: false });
+
+  preparePlanModeSession(state, workspaceRoot);
+
+  const expectedPath = getCurrentPlanPath(workspaceRoot);
+  assert.equal(state.currentPlanPath, expectedPath);
+  assert.ok(fs.existsSync(expectedPath));
+});
+
+test('resolvePlanApprovalOutcome switches to agent on approval and stays in plan on rejection', () => {
+  const { resolvePlanApprovalOutcome } = require('../dist/chat/modes');
+
+  assert.deepEqual(resolvePlanApprovalOutcome(true, { autoAccept: false }), {
+    mode: 'agent',
+    permissionMode: 'ask',
+  });
+  assert.deepEqual(resolvePlanApprovalOutcome(true, { autoAccept: true }), {
+    mode: 'agent',
+    permissionMode: 'bypass',
+  });
+  assert.deepEqual(resolvePlanApprovalOutcome(false, { autoAccept: false }), {
+    mode: 'plan',
+    permissionMode: 'plan',
+  });
 });
 
 test('mode metadata and cycle mirror Claude-style footer modes', () => {

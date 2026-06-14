@@ -1,5 +1,5 @@
-import { AiMode } from './session';
-import { AiSessionState } from './session';
+import { AiMode, AiSessionState, PermissionMode } from './session';
+import { ensurePlanDraftPath, readCurrentPlanFile } from './plan-store';
 
 export interface ModeCommand {
   mode: AiMode;
@@ -59,6 +59,26 @@ export function resolveModeCommandAction(command: string, args = ''): ModeComman
 
 export function getModeConfig(mode: AiMode): ModeConfig {
   return MODE_CONFIG[mode];
+}
+
+export function preparePlanModeSession(state: AiSessionState, workspaceRoot: string): AiSessionState {
+  state.currentPlanPath = ensurePlanDraftPath(workspaceRoot);
+  const existingPlan = readCurrentPlanFile(workspaceRoot);
+  if (existingPlan) state.currentPlan = existingPlan;
+  return state;
+}
+
+export function resolvePlanApprovalOutcome(
+  approved: boolean,
+  options: Pick<AiSessionState, 'autoAccept'>,
+): { mode: AiMode; permissionMode: PermissionMode } {
+  if (approved) {
+    return {
+      mode: 'agent',
+      permissionMode: options.autoAccept ? 'bypass' : 'ask',
+    };
+  }
+  return { mode: 'plan', permissionMode: 'plan' };
 }
 
 export function getNextMode(state: Pick<AiSessionState, 'mode' | 'autoAccept'>): AiMode {

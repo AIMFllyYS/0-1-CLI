@@ -118,6 +118,7 @@ export function renderPlanApprovalPanel(input: PlanApprovalPanelInput): string {
       const detail = permission.reason ? `${permission.action}: ${permission.reason}` : permission.action;
       output.push(`  ${ui.muted('-')} ${truncateVisible(detail, 58)}`);
     });
+    output.push(`  ${ui.muted(truncateVisible('Permissions listed here are not auto-granted.', 62))}`);
   }
 
   output.push(

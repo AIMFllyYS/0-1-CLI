@@ -131,6 +131,75 @@ test('agent loop can delegate Claude-style task tool calls to subagent handler',
   });
 });
 
+test('exit_plan_mode reads plan content from workspace file when tool args omit plan', async () => {
+  const { runAgentTurn } = require('../dist/chat/agent/loop');
+  const { getCurrentPlanPath } = require('../dist/chat/plan-store');
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-agent-loop-exit-plan-disk-'));
+  const planPath = getCurrentPlanPath(workspaceRoot);
+  fs.mkdirSync(path.dirname(planPath), { recursive: true });
+  fs.writeFileSync(planPath, 'Goal: 从磁盘读取\nSteps:\n- verify lifecycle\n', 'utf8');
+
+  const result = await runAgentTurn({
+    messages: [{ role: 'user', content: 'submit plan' }],
+    workspaceRoot,
+    mode: 'plan',
+    permissionMode: 'plan',
+    complete: async () => ({
+      role: 'assistant',
+      content: '',
+      tool_calls: [{
+        id: 'call-exit-plan-disk',
+        type: 'function',
+        function: {
+          name: 'exit_plan_mode',
+          arguments: JSON.stringify({
+            permissions: [{ action: 'edit files', reason: 'implement plan' }],
+          }),
+        },
+      }],
+    }),
+  });
+
+  assert.equal(result.status, 'plan_approval_required');
+  assert.match(result.plan, /从磁盘读取/);
+  assert.deepEqual(result.permissions, [{ action: 'edit files', reason: 'implement plan' }]);
+});
+
+test('exit_plan_mode outside plan mode returns a tool error instead of approval request', async () => {
+  const { runAgentTurn } = require('../dist/chat/agent/loop');
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-agent-loop-exit-plan-agent-'));
+  const messages = [{ role: 'user', content: 'wrong mode' }];
+
+  const result = await runAgentTurn({
+    messages,
+    workspaceRoot,
+    mode: 'agent',
+    permissionMode: 'ask',
+    complete: async (nextMessages) => {
+      if (nextMessages.some((message) => message.role === 'tool' && /not in plan mode/i.test(message.content))) {
+        return { role: 'assistant', content: 'Understood.' };
+      }
+      return {
+        role: 'assistant',
+        content: '',
+        tool_calls: [{
+          id: 'call-exit-plan-agent',
+          type: 'function',
+          function: {
+            name: 'exit_plan_mode',
+            arguments: JSON.stringify({ plan: 'Goal: should not approve here' }),
+          },
+        }],
+      };
+    },
+  });
+
+  assert.equal(result.status, 'completed');
+  assert.match(messages.find((message) => message.role === 'tool').content, /not in plan mode/i);
+  assert.equal(result.toolResults.length, 1);
+  assert.match(result.toolResults[0].message.content, /not in plan mode/i);
+});
+
 test('agent loop turns exit_plan_mode into a plan approval request', async () => {
   const { runAgentTurn } = require('../dist/chat/agent/loop');
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-agent-loop-exit-plan-'));
