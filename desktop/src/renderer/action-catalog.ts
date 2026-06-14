@@ -15,5 +15,5 @@ export const desktopActions: DesktopAction[] = [
   { id: 'install', kind: 'native-install', usesNativePanel: true, title: 'Install tools', command: 'hi --install', description: 'Use desktop categories, target cards, and explicit install confirmation.' },
   { id: 'state', kind: 'cli-command', title: 'System state', command: 'hi --state', description: 'Show GitHub, project paths, commands, and app status.' },
   { id: 'api', kind: 'cli-command', title: 'API platforms', command: 'hi --api', description: 'Open model API platform guidance.' },
-  { id: 'pay', kind: 'cli-command', title: 'Payment resources', command: 'hi --pay', description: 'Open payment and account resource guidance.' },
+  { id: 'pay', kind: 'cli-command', title: 'Payment resources', command: 'hi --pay', description: 'Open payment and card/relay resource guidance.' },
 ];

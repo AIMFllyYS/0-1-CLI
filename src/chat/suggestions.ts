@@ -3,7 +3,7 @@
  *
  * Adapted from Claude Code src/utils/suggestions/commandSuggestions.ts and
  * src/hooks/useUnifiedSuggestions.ts — ported as a provider-neutral, testable
- * data model without Ink/React, account, telemetry, or billing dependencies.
+ * data model without Ink/React or vendor-managed service hooks.
  */
 
 export type SuggestionSource = 'command' | 'path' | 'skill' | 'model' | 'agent';

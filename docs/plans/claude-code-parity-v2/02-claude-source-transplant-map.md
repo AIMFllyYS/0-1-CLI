@@ -21,6 +21,58 @@ For each source area:
 
 Do not import Claude Code as a runtime dependency.
 
+## Per-File Source Trace Matrix
+
+This matrix is the audit anchor for `src/chat/**/*.ts`. Each My-CLI file keeps
+an explicit Claude Code source reference and an adaptation boundary so future
+repairs can trace the copy/adapt/delete decision without re-discovering the
+entire source tree.
+
+| My-CLI file | Claude Code source reference | Adaptation boundary |
+| --- | --- | --- |
+| `src/chat/agent/definitions.ts` | `src/tools/AgentTool/builtInAgents.ts`, `src/tools/AgentTool/built-in/generalPurposeAgent.ts` | Keep local built-in and project agent metadata only. |
+| `src/chat/agent/loop.ts` | `src/query.ts`, `src/QueryEngine.ts`, `src/services/tools/toolExecution.ts` | Keep provider-neutral tool pairing and stop conditions. |
+| `src/chat/agent/prompt.ts` | `src/tools/AgentTool/prompt.ts`, `src/context.ts` | Shape child task context without vendor state. |
+| `src/chat/agent/runner.ts` | `src/tools/AgentTool/runAgent.ts`, `src/tasks/LocalAgentTask/LocalAgentTask.tsx` | Run local subagents through scoped tool specs only. |
+| `src/chat/agent/subagents.ts` | `src/tasks.ts`, `src/Task.ts`, `src/tasks/types.ts` | Preserve local queued/running/completed lifecycle. |
+| `src/chat/agent/types.ts` | `src/tasks/types.ts`, `src/tools/AgentTool/AgentTool.tsx` | Mirror task and tool vocabulary with local fields. |
+| `src/chat/commands.ts` | `src/commands.ts`, `src/types/command.ts`, `src/commands/model/index.ts` | Keep slash metadata, aliases, grouping, and local commands. |
+| `src/chat/config.ts` | `src/tools/ConfigTool/supportedSettings.ts`, `src/tools/ConfigTool/prompt.ts` | Persist OpenAI-compatible settings and mask secrets. |
+| `src/chat/index.ts` | `src/replLauncher.tsx`, `src/interactiveHelpers.tsx`, `src/components/PromptInput/PromptInput.tsx` | Keep readline loop and local command handling. |
+| `src/chat/interrupts.ts` | `src/cli/exit.ts`, `src/hooks/useExitOnCtrlCD.ts` | Keep repeated confirmation and first interrupt cancel. |
+| `src/chat/keybindings.ts` | `src/hooks/useDoublePress.ts`, `src/components/PromptInput/utils.ts` | Keep terminal key normalization and overlay dismissal. |
+| `src/chat/markdown.ts` | `src/components/messages/AssistantTextMessage.tsx`, `src/components/design-system/Divider.tsx` | Render compact terminal markdown without Ink runtime. |
+| `src/chat/models.ts` | `src/commands/model/index.ts`, `src/tools/ConfigTool/supportedSettings.ts` | Keep configurable provider-neutral model metadata. |
+| `src/chat/modes.ts` | `src/commands/plan/index.ts`, `src/tools/ExitPlanModeTool/ExitPlanModeV2Tool.ts` | Keep chat/agent/plan contracts and approval switch. |
+| `src/chat/path-completion.ts` | `src/utils/suggestions/directoryCompletion.ts`, `src/components/PromptInput/utils.ts` | Keep workspace-bounded path suggestion behavior. |
+| `src/chat/permissions/engine.ts` | `src/components/permissions/PermissionDialog.tsx`, `src/utils/permissions/permission.ts`, `src/tools/BashTool/bashPermissions.ts` | Keep local ask/bypass decisions and hard safety denies. |
+| `src/chat/permissions/prompts.ts` | `src/components/permissions/PermissionPrompt.tsx`, `src/components/permissions/FilePermissionDialog/permissionOptions.tsx` | Keep readline permission panels and recent denials. |
+| `src/chat/plan-store.ts` | `src/tools/ExitPlanModeTool/ExitPlanModeV2Tool.ts`, `src/tools/ExitPlanModeTool/prompt.ts` | Read plan drafts from workspace disk before approval. |
+| `src/chat/prompt.ts` | `src/context.ts`, `src/tools.ts`, `src/tools/TodoWriteTool/TodoWriteTool.ts` | Compose local system prompt and mode contracts. |
+| `src/chat/provider.ts` | `src/query.ts`, `src/services/tools/toolOrchestration.ts`, `src/utils/messages.js` | Use OpenAI-compatible messages and tool calls only. |
+| `src/chat/renderer.ts` | `src/components/messages/AssistantTextMessage.tsx`, `src/components/Spinner/SpinnerGlyph.tsx` | Re-export terminal render primitives for local CLI use. |
+| `src/chat/search.ts` | `src/tools/WebSearchTool/WebSearchTool.ts`, `src/tools/WebSearchTool/prompt.ts` | Keep explicit Zhipu search API and local formatting. |
+| `src/chat/session.ts` | `src/context.ts`, `src/query.ts`, `src/tools/ExitPlanModeTool/ExitPlanModeV2Tool.ts` | Store local mode, permissions, skills, and subagents. |
+| `src/chat/skills.ts` | `src/skills/loadSkillsDir.ts`, `src/tools/SkillTool/SkillTool.ts` | Keep public facade over local runtime modules. |
+| `src/chat/skills/discovery.ts` | `src/skills/loadSkillsDir.ts`, `src/skills/bundledSkills.ts` | Discover local skill roots and metadata only. |
+| `src/chat/skills/format.ts` | `src/tools/SkillTool/UI.tsx`, `src/commands/skills/index.js` | Format searchable skill lists for terminal output. |
+| `src/chat/skills/frontmatter.ts` | `src/skills/loadSkillsDir.ts`, `src/tools/SkillTool/prompt.ts` | Parse bounded frontmatter and trigger text. |
+| `src/chat/skills/runtime.ts` | `src/tools/SkillTool/SkillTool.ts`, `src/tools/SkillTool/prompt.ts` | Lazy-load selected skill content as context. |
+| `src/chat/skills/search.ts` | `src/services/skillSearch/index.ts`, `src/commands/skills/index.js` | Rank local skills by id, name, description, triggers. |
+| `src/chat/spinner.ts` | `src/components/Spinner/SpinnerGlyph.tsx`, `src/components/Spinner/index.tsx` | Keep ASCII/Unicode spinner frames without Ink. |
+| `src/chat/stream-renderer.ts` | `src/components/messages/AssistantTextMessage.tsx`, `src/services/tools/StreamingToolExecutor.ts` | Render streaming text and tool activity in terminal. |
+| `src/chat/suggestions.ts` | `src/hooks/useUnifiedSuggestions.ts`, `src/utils/suggestions/index.ts` | Merge command, skill, model, agent, and path suggestions. |
+| `src/chat/terminal-ui.ts` | `src/components/design-system/Dialog.tsx`, `src/components/design-system/Divider.tsx` | Keep box/divider/status glyph grammar. |
+| `src/chat/tools.ts` | `src/tools.ts`, `src/Tool.ts`, `src/tools/FileReadTool/FileReadTool.ts` | Preserve read-only legacy tool compatibility. |
+| `src/chat/tools/fs-read.ts` | `src/tools/FileReadTool/FileReadTool.ts`, `src/tools/GrepTool/GrepTool.ts`, `src/tools/GlobTool/GlobTool.ts` | Keep workspace-safe list/read/search helpers. |
+| `src/chat/tools/fs-write.ts` | `src/tools/FileWriteTool/FileWriteTool.ts`, `src/tools/FileEditTool/FileEditTool.ts` | Keep write permission previews and workspace bounds. |
+| `src/chat/tools/registry.ts` | `src/tools.ts`, `src/Tool.ts`, `src/tools/ExitPlanModeTool/ExitPlanModeV2Tool.ts` | Export provider schemas filtered by active mode. |
+| `src/chat/tools/runner.ts` | `src/services/tools/toolExecution.ts`, `src/services/tools/toolOrchestration.ts` | Return one structured result per tool call. |
+| `src/chat/tools/shell.ts` | `src/tools/BashTool/BashTool.tsx`, `src/tools/BashTool/bashSecurity.ts`, `src/tools/BashTool/destructiveCommandWarning.ts` | Keep local shell classification and workspace cwd checks. |
+| `src/chat/typeahead.ts` | `src/components/PromptInput/PromptInputFooterSuggestions.tsx`, `src/hooks/useSlashCommands.ts` | Keep slash menu ranking, selection, and completion. |
+| `src/chat/ui/layout.ts` | `src/components/CompactSummary.tsx`, `src/components/design-system/Byline.tsx`, `src/components/tasks/renderToolActivity.js` | Keep compact header, byline hints, and timelines. |
+| `src/chat/ui/theme.ts` | `src/components/design-system/Theme.tsx`, `src/components/design-system/KeyboardShortcutHint.tsx` | Keep colors, width helpers, truncation, and glyph mode. |
+
 ## Slash Commands And Suggestions
 
 Claude Code source:

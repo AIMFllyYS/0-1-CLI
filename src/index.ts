@@ -157,7 +157,7 @@ program
       return;
     }
 
-    // GitHub account switcher
+    // GitHub profile switcher
     if (opts.ghSwitch) {
       await interactiveSwitch();
       return;

@@ -3,8 +3,8 @@
  *
  * Adapted from Claude Code src/utils/suggestions/directoryCompletion.ts —
  * ported as a provider-neutral module with workspace-root safety, Windows
- * path normalization, and UTF-8 Chinese file name support.  No LRU cache
- * dependency (uses a simple Map); no account, telemetry, or remote logic.
+ * path normalization, and UTF-8 Chinese file name support. No LRU cache
+ * dependency (uses a simple Map); no vendor-managed service hooks.
  */
 
 import * as fs from 'fs';
