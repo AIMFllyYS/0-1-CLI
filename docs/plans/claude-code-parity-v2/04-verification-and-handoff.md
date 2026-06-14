@@ -198,4 +198,4 @@ The correct mental model:
 - Keep every round small enough to test and commit.
 - Prefer current My-CLI boundaries over broad rewrites.
 
-The first implementation round after this planning pack is Round 1 unless the user asks to start elsewhere.
+Rounds 0–18 are complete as of 2026-06-14 (final audit commit `7a328e5`). Use these handoff docs for regression checks, follow-up fixes, or a future V3 push — not as an open implementation queue unless the user explicitly starts a new round.

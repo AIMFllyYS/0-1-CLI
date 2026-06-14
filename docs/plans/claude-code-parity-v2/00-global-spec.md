@@ -38,11 +38,13 @@ Respect the current repository split:
 - `src/chat/index.ts`: interactive AI loop.
 - `src/chat/session.ts`: mode, permission, model, plan, skills, subagent session state.
 - `src/chat/commands.ts`: slash command registry and parsing.
-- `src/chat/typeahead.ts` and `src/chat/keybindings.ts`: prompt suggestions and keyboard routing.
+- `src/chat/typeahead.ts`, `src/chat/keybindings.ts`, `src/chat/suggestions.ts`, and `src/chat/path-completion.ts`: prompt suggestions and keyboard routing.
+- `src/chat/interrupts.ts`: Ctrl+C / Esc interrupt state machine.
 - `src/chat/provider.ts`: provider-neutral OpenAI-compatible chat completion.
 - `src/chat/tools/**`: provider tool registry, read/write/shell runners.
 - `src/chat/permissions/**`: permission state and prompts.
 - `src/chat/agent/**`: local subagent queue, runner, prompt contracts, definitions.
+- `src/chat/skills.ts` and `src/chat/skills/**`: skills discovery, frontmatter, runtime, search, and formatting.
 - `src/chat/ui/**`, `src/chat/terminal-ui.ts`, `src/chat/stream-renderer.ts`, `src/chat/spinner.ts`: terminal rendering.
 - `desktop/**`: Electron desktop shell, safe IPC adapters, command dashboards, release assets.
 

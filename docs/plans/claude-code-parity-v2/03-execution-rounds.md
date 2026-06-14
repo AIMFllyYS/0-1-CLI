@@ -4,6 +4,10 @@
 
 For Cursor Claude Opus handoff, prefer the single-round files under `docs/plans/claude-code-parity-v2/rounds/`. This document is the full ordered master list; the `rounds/` files are copy-ready execution packets.
 
+## Status
+
+All rounds 0–18 are complete on branch `codex/ai-cli-claude-port` (2026-06-14). Final audit commit: `7a328e5` (`chore(ai): complete claude parity v2 audit`).
+
 ## Per-Round Handoff Files
 
 - Round 00: `rounds/round-00-planning-pack-checkpoint.md`
@@ -41,11 +45,11 @@ For Cursor Claude Opus handoff, prefer the single-round files under `docs/plans/
 
 **Steps:**
 
-- [ ] Run `git status --short --branch`.
-- [ ] Run `git diff --check`.
-- [ ] Run `npm run build`.
-- [ ] Run `node --test --test-concurrency=1 .\tests\*.test.js`.
-- [ ] Commit only the new planning folder with `git commit -m "docs(ai): add claude parity v2 planning pack"`.
+- [x] Run `git status --short --branch`.
+- [x] Run `git diff --check`.
+- [x] Run `npm run build`.
+- [x] Run `node --test --test-concurrency=1 .\tests\*.test.js`.
+- [x] Commit only the new planning folder with `git commit -m "docs(ai): add claude parity v2 planning pack"`.
 
 ## Round 1: Slash Command Registry And Menu Parity
 
@@ -117,7 +121,7 @@ For Cursor Claude Opus handoff, prefer the single-round files under `docs/plans/
 - `node --test tests/ai-suggestions.test.js tests/ai-path-completion.test.js tests/ai-typeahead.test.js`
 - `node --test --test-concurrency=1 .\tests\*.test.js`
 
-**Commit:** `feat(ai): add unified prompt suggestions`
+**Commit:** `feat(ai): add unified prompt suggestions and path completion`
 
 ## Round 3: UTF-8 And Terminal Glyph Repair
 
@@ -189,7 +193,7 @@ For Cursor Claude Opus handoff, prefer the single-round files under `docs/plans/
 - `node --test tests/ai-permissions.test.js tests/ai-permission-dialog.test.js`
 - `node --test --test-concurrency=1 .\tests\*.test.js`
 
-**Commit:** `feat(ai): port permission dialog options`
+**Commit:** `feat(ai): port permission dialog options with recent denials tracking`
 
 ## Round 5: File Diff And Edit Permission UX
 

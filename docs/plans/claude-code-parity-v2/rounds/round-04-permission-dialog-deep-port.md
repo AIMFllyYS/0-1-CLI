@@ -52,5 +52,5 @@ node --test --test-concurrency=1 .\tests\*.test.js
 
 ```powershell
 git add src/chat/permissions/engine.ts src/chat/permissions/prompts.ts src/chat/ui/layout.ts src/chat/index.ts tests/ai-permissions.test.js tests/ai-permission-dialog.test.js
-git commit -m "feat(ai): port permission dialog options"
+git commit -m "feat(ai): port permission dialog options with recent denials tracking"
 ```

@@ -33,4 +33,8 @@ Do not push, merge, or publish releases unless the user explicitly asks for that
 
 ## Status
 
-Round 0–18 completed locally on branch `codex/ai-cli-claude-port` (2026-06-14). Final audit commit: `chore(ai): complete claude parity v2 audit`.
+Round 0–18 completed locally on branch `codex/ai-cli-claude-port` (2026-06-14).
+
+- Final audit commit: `7a328e5` — `chore(ai): complete claude parity v2 audit`
+- Package version at completion: `0.6.15`
+- Untracked at audit time: `AGENTS.md`, `tmp_input.txt` (do not commit temp files)

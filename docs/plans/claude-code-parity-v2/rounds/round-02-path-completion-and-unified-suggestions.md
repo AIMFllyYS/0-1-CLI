@@ -49,5 +49,5 @@ node --test --test-concurrency=1 .\tests\*.test.js
 
 ```powershell
 git add src/chat/suggestions.ts src/chat/path-completion.ts src/chat/typeahead.ts src/chat/keybindings.ts tests/ai-suggestions.test.js tests/ai-path-completion.test.js
-git commit -m "feat(ai): add unified prompt suggestions"
+git commit -m "feat(ai): add unified prompt suggestions and path completion"
 ```

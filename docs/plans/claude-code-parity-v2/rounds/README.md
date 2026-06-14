@@ -4,6 +4,10 @@ Each file in this folder is a self-contained handoff for Cursor Claude Opus 4.6 
 
 Use exactly one file per AI interaction. Do not ask the worker to execute multiple round files unless the user explicitly approves batching.
 
+## Status
+
+All round handoffs 00–18 are complete on branch `codex/ai-cli-claude-port` (2026-06-14). Final audit commit: `7a328e5`.
+
 ## Common Rule
 
 Every round must:
