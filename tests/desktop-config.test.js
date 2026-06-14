@@ -78,9 +78,12 @@ test('desktop IPC bridge restricts renderer origin and noninteractive commands',
 
   assert.match(main, /isAllowedRendererUrl/);
   assert.match(main, /senderFrame\?\.url/);
-  assert.match(permissions, /'install'/);
-  assert.match(permissions, /'skills'/);
-  assert.match(permissions, /'clear'/);
+  assert.match(permissions, /'state'/);
+  assert.match(permissions, /'api'/);
+  assert.match(permissions, /'pay'/);
+  assert.doesNotMatch(permissions, /'install'/);
+  assert.doesNotMatch(permissions, /'skills'/);
+  assert.doesNotMatch(permissions, /'clear'/);
   assert.match(renderer, /desktopActions/);
   assert.match(actions, /hi --clear/);
   assert.match(actions, /hi --skills/);

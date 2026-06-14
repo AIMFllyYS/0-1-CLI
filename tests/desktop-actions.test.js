@@ -36,7 +36,9 @@ test('desktop install IPC lists grouped targets and requires explicit confirmati
   assert.match(installActions, /category: 'environment'/);
   assert.match(installActions, /requiresConfirmation: true/);
   assert.match(installActions, /confirm !== true/);
+  assert.match(installActions, /runDesktopInstallCommand/);
   assert.doesNotMatch(installActions, /readline|question\(/);
+  assert.doesNotMatch(installActions, /runDesktopCli\(`install/);
 });
 
 test('desktop skills IPC lists marketplace and requires explicit target confirmation', () => {

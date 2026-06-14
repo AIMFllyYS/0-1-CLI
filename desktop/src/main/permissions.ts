@@ -3,9 +3,6 @@ const ALLOWED_COMMANDS = new Set([
   'api',
   'pay',
   'help',
-  'clear',
-  'skills',
-  'install',
 ]);
 
 export function isAllowedDesktopCommand(command: string): boolean {
