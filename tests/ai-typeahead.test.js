@@ -47,6 +47,31 @@ test('slash typeahead can suggest commands through aliases without exposing acco
   assert.doesNotMatch(exported, /login|logout|oauth|telemetry|analytics|subscription/);
 });
 
+test('slash suggestions expose matched aliases like Claude command suggestions', () => {
+  const { createSlashTypeaheadState, renderSlashTypeahead } = require('../dist/chat/typeahead');
+  const state = createSlashTypeaheadState('/q', 'agent');
+  const output = renderSlashTypeahead(state).replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '');
+
+  assert.equal(state.suggestions[0].command, '/exit');
+  assert.equal(state.suggestions[0].matchedAlias, '/q');
+  assert.match(output, /\/exit \(\/q\)/);
+});
+
+test('slash suggestions match command parts split by Claude separators', () => {
+  const { generateSlashSuggestions } = require('../dist/chat/typeahead');
+  const items = [
+    { command: '/agent-cancel', description: 'Cancel an agent task', loadedFrom: 'builtin' },
+    { command: '/agent-create', description: 'Create an agent task', loadedFrom: 'builtin' },
+    { command: '/memory:add', description: 'Add memory entry', loadedFrom: 'builtin' },
+    { command: '/model', description: 'Choose model', loadedFrom: 'builtin' },
+    { command: '/login', description: 'Account command should stay hidden', loadedFrom: 'builtin', isHidden: true },
+  ];
+
+  assert.deepEqual(generateSlashSuggestions('/cancel', items).map((item) => item.command), ['/agent-cancel']);
+  assert.deepEqual(generateSlashSuggestions('/add', items).map((item) => item.command), ['/memory:add']);
+  assert.ok(!generateSlashSuggestions('/login', items).some((item) => item.command === '/login'));
+});
+
 test('slash typeahead ranks exact aliases before prefix matches and falls back to descriptions', () => {
   const { createSlashTypeaheadState } = require('../dist/chat/typeahead');
 
