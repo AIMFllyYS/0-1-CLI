@@ -5,7 +5,7 @@ function formatList(label: string, values: string[] | undefined): string {
   return `${label}=${values && values.length ? values.join(',') : 'none'}`;
 }
 
-export function buildSubagentMessages(task: Pick<SubagentTask, 'prompt' | 'mode' | 'permissionMode' | 'allowedTools' | 'disallowedTools' | 'skillIds' | 'modelId' | 'currentPlan' | 'agentType' | 'agentSystemPrompt'>): ChatMessage[] {
+export function buildSubagentMessages(task: Pick<SubagentTask, 'prompt' | 'mode' | 'permissionMode' | 'allowedTools' | 'disallowedTools' | 'skillIds' | 'modelId' | 'currentPlan' | 'currentPlanPath' | 'agentType' | 'agentSystemPrompt'>): ChatMessage[] {
   const system = [
     '# Subagent Runtime',
     'You are a scoped local subagent inside 0-1 CLI.',
@@ -22,6 +22,7 @@ export function buildSubagentMessages(task: Pick<SubagentTask, 'prompt' | 'mode'
     formatList('skillIds', task.skillIds),
     '',
     '# Current Plan',
+    task.currentPlanPath ? `Plan file: ${task.currentPlanPath}` : 'Plan file: none',
     task.currentPlan?.trim() || 'none',
     task.agentSystemPrompt?.trim()
       ? ['', '# Agent Definition', task.agentSystemPrompt.trim()].join('\n')

@@ -27,6 +27,7 @@ const COMMAND_DEFINITIONS: SlashCommandDefinition[] = [
   { command: '/chat', type: 'local', loadedFrom: 'builtin', category: 'Mode', description: 'Switch to read-only code conversation mode', mode: 'all' },
   { command: '/agent', type: 'local', loadedFrom: 'builtin', category: 'Mode', description: 'Switch to tool-using agent mode', mode: 'all' },
   { command: '/plan', type: 'local', loadedFrom: 'builtin', category: 'Mode', description: 'Plan work without editing files', mode: 'all' },
+  { command: '/plan open', type: 'local', loadedFrom: 'builtin', category: 'Mode', description: 'Show the current saved plan file', mode: 'all' },
   { command: '/agent spawn <task>', type: 'local', loadedFrom: 'builtin', category: 'Agent', description: 'Start a scoped local subagent', argumentHint: '<task>', mode: 'agent' },
   { command: '/agent list', type: 'local', loadedFrom: 'builtin', category: 'Agent', description: 'Show queued and running subagents', mode: 'agent' },
   { command: '/agent cancel <id>', type: 'local', loadedFrom: 'builtin', category: 'Agent', description: 'Cancel a queued or running subagent', argumentHint: '<id>', mode: 'agent' },

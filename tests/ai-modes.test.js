@@ -1,6 +1,9 @@
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
-const { readFileSync } = require('node:fs');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { readFileSync } = fs;
 const test = require('node:test');
 
 execFileSync('cmd.exe', ['/c', 'npm run build --silent'], { stdio: 'pipe' });
@@ -73,6 +76,28 @@ test('plan mode stores and formats the current plan', () => {
   assert.equal(state.currentPlan, 'Goal: ship desktop release assets\nSteps:\n- verify builds');
 });
 
+test('plan mode persists current plan to workspace plan file', () => {
+  const { createSessionState, formatCurrentPlan, loadCurrentPlanFromWorkspace, recordCurrentPlan } = require('../dist/chat/session');
+  const { getCurrentPlanPath, readCurrentPlanFile } = require('../dist/chat/plan-store');
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-plan-store-'));
+  const state = createSessionState({ modelId: 'model-a', autoAccept: false });
+
+  recordCurrentPlan(state, '  Goal: 保留 UTF-8 中文\nSteps:\n- write plan file  ', { workspaceRoot });
+
+  const expectedPath = path.join(workspaceRoot, '.0-1-cli', 'plans', 'current.md');
+  assert.equal(getCurrentPlanPath(workspaceRoot), expectedPath);
+  assert.equal(state.currentPlanPath, expectedPath);
+  assert.equal(fs.readFileSync(expectedPath, 'utf8'), 'Goal: 保留 UTF-8 中文\nSteps:\n- write plan file\n');
+  assert.equal(readCurrentPlanFile(workspaceRoot), 'Goal: 保留 UTF-8 中文\nSteps:\n- write plan file');
+  assert.match(formatCurrentPlan(state), /Plan file:/);
+  assert.match(formatCurrentPlan(state), /\.0-1-cli[\\/]plans[\\/]current\.md/);
+
+  const restored = createSessionState({ modelId: 'model-a', autoAccept: false });
+  loadCurrentPlanFromWorkspace(restored, workspaceRoot);
+  assert.equal(restored.currentPlan, 'Goal: 保留 UTF-8 中文\nSteps:\n- write plan file');
+  assert.equal(restored.currentPlanPath, expectedPath);
+});
+
 test('resolveModeCommand supports slash mode commands', () => {
   const { resolveModeCommand } = require('../dist/chat/modes');
 
@@ -105,9 +130,12 @@ test('chat loop consumes queued slash-command input before prompting again', () 
 test('chat loop records plan replies and lets /plan show the current plan', () => {
   const source = readFileSync('src/chat/index.ts', 'utf8');
 
-  assert.match(source, /recordCurrentPlan\(session,\s*response\)/);
+  assert.match(source, /recordCurrentPlan\(session,\s*response,\s*\{\s*workspaceRoot:\s*process\.cwd\(\)\s*\}\)/);
   assert.match(source, /formatCurrentPlan\(session\)/);
   assert.match(source, /cmd === '\/plan' && !args\.trim\(\) && session\.mode === 'plan'/);
+  assert.match(source, /args\.trim\(\)\.toLowerCase\(\) === 'open'/);
+  assert.match(source, /currentPlanPath:\s*session\.currentPlanPath/);
+  assert.match(source, /loadCurrentPlanFromWorkspace\(session,\s*process\.cwd\(\)\)/);
 });
 
 test('mode metadata and cycle mirror Claude-style footer modes', () => {

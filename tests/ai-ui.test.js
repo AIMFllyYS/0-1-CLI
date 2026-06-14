@@ -134,6 +134,7 @@ test('slash menu exposes mode and runtime commands', () => {
   const agentItems = getSlashMenuItems('agent').map((item) => item.command);
 
   assert.match(chatMenu, /\/chat/);
+  assert.match(chatMenu, /\/plan open/);
   assert.match(chatMenu, /\/setting/);
   assert.doesNotMatch(chatMenu, /\/agent spawn <task>/);
   assert.ok(agentItems.includes('/agent spawn <task>'));

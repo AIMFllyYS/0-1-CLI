@@ -11,7 +11,7 @@ import { parseAiEnv, resolveEnvPath, writeAiSettings } from './config';
 import { formatSlashMenu, parseSlashCommand, resolveModelCommand } from './commands';
 import { createInterruptController, createPendingInputController } from './interrupts';
 import { getNextMode, resolveModeCommandAction } from './modes';
-import { AiSessionState, createSessionState, formatCurrentPlan, recordCurrentPlan, setCurrentModel, setMode } from './session';
+import { AiSessionState, createSessionState, formatCurrentPlan, loadCurrentPlanFromWorkspace, recordCurrentPlan, setCurrentModel, setMode } from './session';
 import { ActiveRuntimeSkill, discoverRuntimeSkills, formatSkillContextMessage, formatSkillList, loadRuntimeSkillContent, resolveSkillSelection, RuntimeSkill, trimMessagesPreservingSkillContext, upsertSkillContextMessage } from './skills';
 import { createSubagentQueue, enqueueSubagent, cancelSubagent, formatSubagentList, resolveAgentCommand, runNextSubagent, setSubagentParentPermission } from './agent/subagents';
 import { SubagentQueue } from './agent/types';
@@ -34,6 +34,7 @@ export interface StartChatOptions {
 export async function startChat(options?: string | StartChatOptions): Promise<void> {
   const startOptions = typeof options === 'string' ? { modelId: options } : (options || {});
   const session = createSessionState({ modelId: startOptions.modelId || DEFAULT_MODEL_ID, autoAccept: startOptions.autoAccept });
+  loadCurrentPlanFromWorkspace(session, process.cwd());
   session.subagents = createSubagentQueue({ parentPermissionMode: session.permissionMode });
   let currentModel = getModelById(session.currentModelId) || MODELS[0];
   const runtimeSkills = discoverRuntimeSkills();
@@ -229,7 +230,7 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
         const response = await streamAIResponse(messages, currentModel, (cancel) => {
           activeCancel = cancel;
         });
-        if (session.mode === 'plan' && response) recordCurrentPlan(session, response);
+        if (session.mode === 'plan' && response) recordCurrentPlan(session, response, { workspaceRoot: process.cwd() });
       }
     } finally {
       activeCancel = null;
@@ -280,6 +281,16 @@ async function handleCommand(
   }
   if (cmd === '/agent' && args.trim()) {
     await handleAgentCommand(args, currentModel, session, hooks);
+    return 'continue';
+  }
+  if (cmd === '/plan' && args.trim().toLowerCase() === 'open') {
+    console.log('');
+    console.log(chalk.bold.cyan('  Current Plan File'));
+    printDivider();
+    formatCurrentPlan(session).split('\n').forEach((line) => {
+      console.log(chalk.white('  ' + line));
+    });
+    console.log('');
     return 'continue';
   }
   if (cmd === '/plan' && !args.trim() && session.mode === 'plan') {
@@ -482,6 +493,7 @@ async function handleAgentCommand(
       skillIds: [...new Set([...session.activeSkillIds, ...(agentDefinition.skills || [])])],
       modelId: currentModel.id,
       currentPlan: session.currentPlan,
+      currentPlanPath: session.currentPlanPath,
       agentType: agentDefinition.agentType,
       agentSystemPrompt: agentDefinition.systemPrompt,
     });
@@ -801,6 +813,7 @@ function handleAgentTaskToolCall(
     skillIds: [...new Set([...session.activeSkillIds, ...(agentDefinition.skills || [])])],
     modelId: agentDefinition.model && agentDefinition.model !== 'inherit' ? agentDefinition.model : model.id,
     currentPlan: session.currentPlan,
+    currentPlanPath: session.currentPlanPath,
     agentType: agentDefinition.agentType,
     agentSystemPrompt: agentDefinition.systemPrompt,
   });

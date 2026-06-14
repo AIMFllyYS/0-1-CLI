@@ -11,6 +11,7 @@ export interface SubagentTaskInput {
   skillIds?: string[];
   modelId?: string;
   currentPlan?: string;
+  currentPlanPath?: string;
   agentType?: string;
   agentSystemPrompt?: string;
 }
@@ -30,6 +31,7 @@ export interface SubagentTask extends Required<Pick<SubagentTaskInput, 'prompt'>
   skillIds: string[];
   modelId?: string;
   currentPlan?: string;
+  currentPlanPath?: string;
   agentType?: string;
   agentSystemPrompt?: string;
   createdAt: number;
