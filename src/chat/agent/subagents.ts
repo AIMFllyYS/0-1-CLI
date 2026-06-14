@@ -41,6 +41,7 @@ export function enqueueSubagent(queue: SubagentQueue, input: SubagentTaskInput):
     allowedTools: input.allowedTools || [],
     skillIds: input.skillIds || [],
     modelId: input.modelId,
+    currentPlan: input.currentPlan,
     createdAt: Date.now(),
   };
   queue.items.push(task);
@@ -115,6 +116,9 @@ function defaultSubagentHandler(task: SubagentTask): SubagentResult {
     summary: `Queued local subagent task: ${task.prompt}`,
     notes: [
       `permissionMode=${task.permissionMode}`,
+      task.modelId ? `modelId=${task.modelId}` : 'modelId=default',
+      task.currentPlan ? `currentPlan=${task.currentPlan}` : 'currentPlan=none',
+      task.skillIds.length ? `skillIds=${task.skillIds.join(',')}` : 'skillIds=none',
       task.allowedTools.length ? `allowedTools=${task.allowedTools.join(',')}` : 'allowedTools=none',
     ],
   };

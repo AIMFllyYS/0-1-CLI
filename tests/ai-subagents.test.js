@@ -23,6 +23,31 @@ test('subagent queue moves queued to running then completed with structured resu
   assert.deepEqual(queue.items[0].result.notes, ['No writes needed']);
 });
 
+test('subagents inherit parent plan skills model and tool limits into default result notes', async () => {
+  const { createSubagentQueue, enqueueSubagent, runNextSubagent } = require('../dist/chat/agent/subagents');
+  const queue = createSubagentQueue({ parentPermissionMode: 'ask' });
+
+  const task = enqueueSubagent(queue, {
+    prompt: 'Review release workflow',
+    mode: 'agent',
+    permissionMode: 'ask',
+    allowedTools: ['read_file', 'search_files'],
+    skillIds: ['frontend-design', 'test-driven-development'],
+    modelId: 'model-a',
+    currentPlan: 'Goal: ship desktop assets',
+  });
+
+  assert.equal(task.currentPlan, 'Goal: ship desktop assets');
+
+  const completed = await runNextSubagent(queue);
+  const notes = completed.result.notes.join('\n');
+
+  assert.match(notes, /currentPlan=Goal: ship desktop assets/);
+  assert.match(notes, /skillIds=frontend-design,test-driven-development/);
+  assert.match(notes, /modelId=model-a/);
+  assert.match(notes, /allowedTools=read_file,search_files/);
+});
+
 test('subagent permissions can narrow but not widen parent permissions', () => {
   const { createSubagentQueue, enqueueSubagent } = require('../dist/chat/agent/subagents');
 
@@ -71,4 +96,10 @@ test('agent slash command parser supports spawn list and cancel', () => {
   assert.deepEqual(resolveAgentCommand('list'), { kind: 'list' });
   assert.deepEqual(resolveAgentCommand('cancel sub-1'), { kind: 'cancel', id: 'sub-1' });
   assert.deepEqual(resolveAgentCommand('spawn Review files'), { kind: 'spawn', prompt: 'Review files' });
+});
+
+test('agent spawn command forwards the current plan into subagent tasks', () => {
+  const source = require('node:fs').readFileSync('src/chat/index.ts', 'utf8');
+
+  assert.match(source, /currentPlan:\s*session\.currentPlan/);
 });

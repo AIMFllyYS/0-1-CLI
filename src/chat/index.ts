@@ -474,6 +474,7 @@ async function handleAgentCommand(
       permissionMode: session.permissionMode,
       skillIds: session.activeSkillIds,
       modelId: currentModel.id,
+      currentPlan: session.currentPlan,
     });
     console.log(formatPermissionDecision({
       decision: task.permissionMode === 'ask' ? 'ask' : 'allow',

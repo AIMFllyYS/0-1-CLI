@@ -9,6 +9,7 @@ export interface SubagentTaskInput {
   allowedTools?: string[];
   skillIds?: string[];
   modelId?: string;
+  currentPlan?: string;
 }
 
 export interface SubagentResult {
@@ -24,6 +25,7 @@ export interface SubagentTask extends Required<Pick<SubagentTaskInput, 'prompt'>
   allowedTools: string[];
   skillIds: string[];
   modelId?: string;
+  currentPlan?: string;
   createdAt: number;
   startedAt?: number;
   completedAt?: number;
