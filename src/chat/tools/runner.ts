@@ -2,7 +2,7 @@ import { ChatMessage, ToolCall } from '../../types';
 import { AiMode, PermissionMode } from '../session';
 import { decidePermission, PermissionDecision, SessionPermissionMemory } from '../permissions/engine';
 import { listFilesTool, readFileTool, searchFilesTool } from './fs-read';
-import { writeFileTool } from './fs-write';
+import { computeFileChangeSummary, FileChangeSummary, writeFileTool } from './fs-write';
 import { runShellTool } from './shell';
 import { getToolDefinition } from './registry';
 
@@ -19,6 +19,7 @@ export interface ExecuteToolCallResult {
   message: ChatMessage;
   permission: PermissionDecision;
   permissionRequired: boolean;
+  fileChangeSummary?: FileChangeSummary;
 }
 
 function toolMessage(toolCall: ToolCall, content: string): ChatMessage {
@@ -106,9 +107,20 @@ export async function executeToolCall(input: ExecuteToolCallInput): Promise<Exec
   }
 
   if (permission.decision === 'ask') {
+    let fileChangeSummary: FileChangeSummary | undefined;
+    if (name === 'write_file') {
+      try {
+        fileChangeSummary = computeFileChangeSummary({
+          targetPath: asString(args.path),
+          newContent: asString(args.content),
+          workspaceRoot: input.workspaceRoot,
+        });
+      } catch { /* non-critical: preview unavailable */ }
+    }
     return {
       permission,
       permissionRequired: true,
+      fileChangeSummary,
       message: toolMessage(input.toolCall, `Permission required for ${name}: ${permission.reason}`),
     };
   }

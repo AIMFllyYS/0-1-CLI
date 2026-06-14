@@ -1,8 +1,18 @@
 import { PermissionDecision, recordDenial, rememberSessionPermissionRule, resolveWorkspacePath, SessionPermissionMemory, SessionPermissionRule } from './engine';
 import { RunAgentTurnInput, RunAgentTurnResult, runAgentTurn } from '../agent/loop';
 import { executeToolCall } from '../tools/runner';
-import { renderPermissionBox, renderRecentDenials } from '../ui/layout';
+import { renderFileChangePreview, renderPermissionBox, renderRecentDenials } from '../ui/layout';
 import { getRecentDenials } from './engine';
+import type { FileChangeOperation } from '../tools/fs-write';
+
+export interface FilePermissionBoxInput {
+  tool: string;
+  filePath: string;
+  operation: FileChangeOperation;
+  added: number;
+  removed: number;
+  changed: number;
+}
 
 export type PermissionPromptChoice =
   | { kind: 'allow_once' }
@@ -25,6 +35,17 @@ export type PermissionPromptResult =
 
 export function formatPermissionDecision(decision: PermissionDecision, tool = 'tool'): string {
   return renderPermissionBox({ tool, action: decision.decision, reason: decision.reason });
+}
+
+export function formatFilePermissionBox(input: FilePermissionBoxInput): string {
+  return renderFileChangePreview({
+    tool: input.tool,
+    filePath: input.filePath,
+    operation: input.operation,
+    added: input.added,
+    removed: input.removed,
+    changed: input.changed,
+  });
 }
 
 export function parsePermissionPromptChoice(input: string): PermissionPromptChoice {

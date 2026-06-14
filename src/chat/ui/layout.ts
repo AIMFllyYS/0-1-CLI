@@ -3,6 +3,16 @@ import { getModeConfig } from '../modes';
 import { glyphs } from '../terminal-ui';
 import { line, truncateVisible, ui, UI_WIDTH, visibleLength } from './theme';
 import type { RecentDenial } from '../permissions/engine';
+import type { FileChangeOperation } from '../tools/fs-write';
+
+export interface FileChangePreviewInput {
+  tool: string;
+  filePath: string;
+  operation: FileChangeOperation;
+  added: number;
+  removed: number;
+  changed: number;
+}
 
 export interface RecentDenialsInput {
   denials: RecentDenial[];
@@ -142,6 +152,36 @@ export function renderRecentDenials(input: RecentDenialsInput): string {
     return `  ${ui.danger(glyphs.bullet)} ${ui.muted(label)}`;
   });
   return ['', header, `  ${line(48)}`, ...items].join('\n');
+}
+
+export function renderFileChangePreview(input: FileChangePreviewInput): string {
+  const opLabels: Record<FileChangeOperation, string> = {
+    create: 'Create file',
+    overwrite: 'Overwrite file',
+    edit: 'Edit file',
+  };
+  const opColors: Record<FileChangeOperation, (s: string) => string> = {
+    create: ui.success,
+    overwrite: ui.warning,
+    edit: ui.accent,
+  };
+  const opLabel = opColors[input.operation](opLabels[input.operation]);
+
+  const stats: string[] = [];
+  if (input.added > 0) stats.push(ui.success(`+${input.added}`));
+  if (input.removed > 0) stats.push(ui.danger(`-${input.removed}`));
+  if (input.changed > 0) stats.push(ui.warning(`~${input.changed}`));
+  const statsLine = stats.length ? stats.join(' ') : ui.muted('no changes');
+
+  return [
+    '',
+    `  ${ui.warning('Permission')} ${opLabel}`,
+    `  ${line(48)}`,
+    `  tool   ${ui.strong(truncateVisible(input.tool, 40))}`,
+    `  file   ${ui.muted(truncateVisible(input.filePath, 56))}`,
+    `  lines  ${statsLine}`,
+    `  ${ui.success('[允许]')}  ${ui.danger('[拒绝]')}  ${ui.muted('[本次会话记住]')}`,
+  ].join('\n');
 }
 
 export function renderKeyboardHintRow(): string {

@@ -266,3 +266,56 @@ test('formatRecentDenials returns empty string when no denials exist', () => {
   assert.equal(formatRecentDenials({}), '');
   assert.equal(formatRecentDenials(undefined), '');
 });
+
+test('formatPermissionBox shows file change preview with operation label', () => {
+  const { formatFilePermissionBox } = require('../dist/chat/permissions/prompts');
+
+  const createResult = formatFilePermissionBox({
+    tool: 'write_file',
+    filePath: 'src/new.ts',
+    operation: 'create',
+    added: 5,
+    removed: 0,
+    changed: 0,
+  });
+  assert.match(createResult, /Create/i);
+  assert.match(createResult, /\+5/);
+  assert.match(createResult, /new\.ts/);
+
+  const overwriteResult = formatFilePermissionBox({
+    tool: 'write_file',
+    filePath: 'src/existing.ts',
+    operation: 'overwrite',
+    added: 3,
+    removed: 2,
+    changed: 1,
+  });
+  assert.match(overwriteResult, /Overwrite/i);
+  assert.match(overwriteResult, /\+3/);
+  assert.match(overwriteResult, /\-2/);
+
+  const editResult = formatFilePermissionBox({
+    tool: 'write_file',
+    filePath: 'src/edit.ts',
+    operation: 'edit',
+    added: 1,
+    removed: 1,
+    changed: 2,
+  });
+  assert.match(editResult, /Edit/i);
+});
+
+test('formatFilePermissionBox preserves UTF-8 file paths', () => {
+  const { formatFilePermissionBox } = require('../dist/chat/permissions/prompts');
+
+  const result = formatFilePermissionBox({
+    tool: 'write_file',
+    filePath: 'docs/中文文档.md',
+    operation: 'create',
+    added: 10,
+    removed: 0,
+    changed: 0,
+  });
+  assert.match(result, /中文文档\.md/);
+  assert.doesNotMatch(result, /\ufffd/);
+});
