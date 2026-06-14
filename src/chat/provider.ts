@@ -1,5 +1,6 @@
 import * as http from 'http';
 import * as https from 'https';
+import { StringDecoder } from 'string_decoder';
 import { ChatMessage, ModelInfo } from '../types';
 import { parseAiEnv } from './config';
 
@@ -138,11 +139,14 @@ export function streamChat(
     let full = '';
     let buffer = '';
     let done = false;
+    const decoder = new StringDecoder('utf8');
 
     if (res.statusCode && res.statusCode >= 400) {
+      const errDecoder = new StringDecoder('utf8');
       let errBody = '';
-      res.on('data', (c) => errBody += c);
+      res.on('data', (c: Buffer) => { errBody += errDecoder.write(c); });
       res.on('end', () => {
+        errBody += errDecoder.end();
         try {
           const parsed = JSON.parse(errBody);
           const msg = parsed.error?.message || `API ${res.statusCode}`;
@@ -159,7 +163,7 @@ export function streamChat(
     }
 
     res.on('data', (chunk: Buffer) => {
-      buffer += chunk.toString();
+      buffer += decoder.write(chunk);
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
 
@@ -191,8 +195,8 @@ export function streamChat(
     });
 
     res.on('end', () => {
-      if (done) return; // Already called onDone via [DONE] signal
-      // Process remaining buffer
+      buffer += decoder.end();
+      if (done) return;
       if (buffer.trim()) {
         const trimmed = buffer.trim();
         if (trimmed.startsWith('data: ') && trimmed.slice(6) !== '[DONE]') {
@@ -259,9 +263,11 @@ export function chatCompleteMessage(messages: ChatMessage[], model: ModelInfo, t
         'Content-Length': Buffer.byteLength(data),
       },
     }, (res) => {
+      const resDecoder = new StringDecoder('utf8');
       let responseData = '';
-      res.on('data', (c) => responseData += c);
+      res.on('data', (c: Buffer) => { responseData += resDecoder.write(c); });
       res.on('end', () => {
+        responseData += resDecoder.end();
         try {
           const parsed = JSON.parse(responseData);
           if (parsed.error) {

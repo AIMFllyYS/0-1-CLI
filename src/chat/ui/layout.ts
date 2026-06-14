@@ -1,5 +1,6 @@
 import { AiMode, PermissionMode } from '../session';
 import { getModeConfig } from '../modes';
+import { glyphs } from '../terminal-ui';
 import { line, truncateVisible, ui, UI_WIDTH, visibleLength } from './theme';
 
 export interface StatusHeaderInput {
@@ -49,7 +50,7 @@ export function renderModePill(mode: AiMode, permissionMode: PermissionMode): st
 }
 
 export function renderStatusHeader(input: StatusHeaderInput): string {
-  const title = `${ui.brand('0-1 CLI')} ${ui.muted('·')} ${ui.strong(truncateVisible(input.project, 28))}`;
+  const title = `${ui.brand('0-1 CLI')} ${ui.muted(glyphs.separator)} ${ui.strong(truncateVisible(input.project, 28))}`;
   const meta = [
     renderModePill(input.mode, input.permissionMode),
     `model ${truncateVisible(input.model, 10)}`,
@@ -114,7 +115,7 @@ export function renderPlanApprovalPanel(input: PlanApprovalPanelInput): string {
 }
 
 export function renderTimelineEntry(input: TimelineEntryInput): string {
-  const icon = input.kind === 'subagent' ? '◇' : input.kind === 'tool' ? '◆' : '•';
+  const icon = input.kind === 'subagent' ? glyphs.diamondOpen : input.kind === 'tool' ? glyphs.diamond : glyphs.bullet;
   const labelText = truncateVisible(input.label, 18);
   const status = input.status === 'completed'
     ? ui.success(input.status)
@@ -135,5 +136,5 @@ export function renderKeyboardHintRow(): string {
     `${ui.muted('Enter')} execute`,
     `${ui.muted('Up/Down')} navigate`,
   ];
-  return `  ${truncateVisible(hints.join(ui.muted(' | ')), UI_WIDTH)}`;
+  return `  ${truncateVisible(hints.join(ui.muted(` ${glyphs.separator} `)), UI_WIDTH)}`;
 }

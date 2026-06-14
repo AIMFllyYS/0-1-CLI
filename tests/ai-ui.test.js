@@ -13,6 +13,15 @@ function visibleLength(value) {
   return Array.from(stripAnsi(value)).reduce((sum, char) => sum + (/[\u0080-\uFFFF]/.test(char) ? 2 : 1), 0);
 }
 
+const REPLACEMENT = '\uFFFD';
+const MOJIBAKE_FRAGMENTS = /鏃|璇|鎶|瀛|鈥|鈼/;
+
+function assertNoMojibake(text, label) {
+  const plain = stripAnsi(text);
+  assert.ok(!plain.includes(REPLACEMENT), `${label} contains replacement char U+FFFD`);
+  assert.doesNotMatch(plain, MOJIBAKE_FRAGMENTS, `${label} contains mojibake fragment`);
+}
+
 test('status header includes project mode model permission and UTF-8 labels', () => {
   const { renderStatusHeader } = require('../dist/chat/ui/layout');
   const raw = renderStatusHeader({
@@ -32,6 +41,7 @@ test('status header includes project mode model permission and UTF-8 labels', ()
   assert.match(output, /glm-4\.5/);
   assert.match(output, /技能 2/);
   assert.match(output, /子任务 1/);
+  assertNoMojibake(raw, 'status header');
   for (const line of raw.split('\n').filter(Boolean)) {
     assert.ok(visibleLength(line) <= 66, `line too wide: ${stripAnsi(line)}`);
   }
@@ -46,6 +56,7 @@ test('permission box renders clear action labels', () => {
   assert.match(output, /允许/);
   assert.match(output, /拒绝/);
   assert.match(output, /ASK/);
+  assertNoMojibake(output, 'permission box');
 });
 
 test('plan approval panel renders Claude-style ready-to-code review', () => {
@@ -64,6 +75,7 @@ test('plan approval panel renders Claude-style ready-to-code review', () => {
   assert.match(output, /Yes, manually approve edits/);
   assert.match(output, /No, keep planning/);
   assert.match(output, /Plan file:/);
+  assertNoMojibake(output, 'plan approval panel');
 });
 
 test('plan approval panel keeps wide plan content within status width', () => {

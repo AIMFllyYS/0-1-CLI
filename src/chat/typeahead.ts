@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { getSlashMenuItems, SlashMenuItem } from './commands';
 import { resolveSlashPromptKeyAction } from './keybindings';
 import { AiMode } from './session';
+import { glyphs } from './terminal-ui';
 import { isPathLikeToken, getPathSuggestions } from './path-completion';
 import type { SuggestionItem } from './suggestions';
 import {
@@ -268,7 +269,7 @@ export function renderSlashTypeahead(state: SlashTypeaheadState): string {
   return visible.map((item, index) => {
     const actualIndex = start + index;
     const selected = actualIndex === state.selectedIndex;
-    const prefix = selected ? chalk.green('›') : chalk.gray(' ');
+    const prefix = selected ? chalk.green(glyphs.pointer) : chalk.gray(' ');
     const aliasText = item.matchedAlias ? ` (${item.matchedAlias})` : '';
     const commandText = `${item.command}${aliasText}${item.argumentHint ? ` ${item.argumentHint}` : ''}`;
     const command = commandText.padEnd(state.commandWidth);
