@@ -1,7 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { validateDesktopCommand } from '../main/permissions';
 
 contextBridge.exposeInMainWorld('zeroOneCli', {
-  runCommand: (command: string) => ipcRenderer.invoke('cli:run', command),
+  runCommand: (command: string) => {
+    const validation = validateDesktopCommand(command);
+    if (!validation.allowed) {
+      return Promise.resolve({ ok: false, output: validation.reason || `Command not allowed: ${command}` });
+    }
+    return ipcRenderer.invoke('cli:run', command);
+  },
   getLatestRelease: () => ipcRenderer.invoke('release:getLatest'),
   openLatestRelease: () => ipcRenderer.invoke('release:openLatest'),
   openReleaseAsset: (url: string) => ipcRenderer.invoke('release:openAsset', url),

@@ -75,19 +75,29 @@ test('desktop IPC bridge restricts renderer origin and noninteractive commands',
   const permissions = fs.readFileSync(path.join('desktop', 'src', 'main', 'permissions.ts'), 'utf8');
   const renderer = fs.readFileSync(path.join('desktop', 'src', 'renderer', 'App.tsx'), 'utf8');
   const actions = fs.readFileSync(path.join('desktop', 'src', 'renderer', 'action-catalog.ts'), 'utf8');
+  const runner = fs.readFileSync(path.join('desktop', 'src', 'main', 'cli-runner.ts'), 'utf8');
+  const allowedBlock = permissions.match(/ALLOWED_COMMANDS = new Set\(\[([\s\S]*?)\]\)/)?.[1] || '';
+  const interactiveBlock = permissions.match(/INTERACTIVE_COMMANDS = new Set\(\[([\s\S]*?)\]\)/)?.[1] || '';
 
   assert.match(main, /isAllowedRendererUrl/);
   assert.match(main, /senderFrame\?\.url/);
-  assert.match(permissions, /'state'/);
-  assert.match(permissions, /'api'/);
-  assert.match(permissions, /'pay'/);
-  assert.doesNotMatch(permissions, /'install'/);
-  assert.doesNotMatch(permissions, /'skills'/);
-  assert.doesNotMatch(permissions, /'clear'/);
+  assert.match(allowedBlock, /'state'/);
+  assert.match(allowedBlock, /'api'/);
+  assert.match(allowedBlock, /'pay'/);
+  assert.match(interactiveBlock, /'install'/);
+  assert.match(interactiveBlock, /'skills'/);
+  assert.match(interactiveBlock, /'clear'/);
+  assert.doesNotMatch(allowedBlock, /'install'/);
+  assert.doesNotMatch(allowedBlock, /'skills'/);
+  assert.doesNotMatch(allowedBlock, /'clear'/);
+  assert.match(runner, /Command not allowed/);
   assert.match(renderer, /desktopActions/);
   assert.match(actions, /hi --clear/);
   assert.match(actions, /hi --skills/);
   assert.match(actions, /hi --install/);
+  assert.match(actions, /hi --state/);
+  assert.match(actions, /hi --api/);
+  assert.match(actions, /hi --pay/);
 });
 
 test('desktop builder is wired for GitHub release publishing', () => {

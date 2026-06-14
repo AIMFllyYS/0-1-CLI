@@ -100,20 +100,46 @@ function App(): React.ReactElement {
   const [clearProcesses, setClearProcesses] = useState<ClearProcess[]>([]);
   const [selectedClearPids, setSelectedClearPids] = useState<number[]>([]);
   const [output, setOutput] = useState('Ready.');
+  const [copyStatus, setCopyStatus] = useState('');
+  const [commandBusy, setCommandBusy] = useState(false);
   const [releaseStatus, setReleaseStatus] = useState('Release status not checked.');
   const [releaseInfo, setReleaseInfo] = useState<ReleaseInfo | null>(null);
   const modeLabel = useMemo(() => `${mode} / ${mode === 'plan' ? 'plan' : 'ask'}`, [mode]);
 
   async function runCommand(command: string): Promise<void> {
+    if (commandBusy) {
+      setOutput('Another command is still running. Wait for it to finish.');
+      return;
+    }
     if (!window.zeroOneCli) {
       setOutput('Desktop bridge is unavailable in browser preview.');
       return;
     }
-    const result = await window.zeroOneCli.runCommand(command);
-    setOutput(result.output || (result.ok ? 'Done.' : 'Command failed.'));
+    setCommandBusy(true);
+    setCopyStatus('');
+    try {
+      const result = await window.zeroOneCli.runCommand(command);
+      setOutput(result.output || (result.ok ? 'Done.' : 'Command failed.'));
+    } finally {
+      setCommandBusy(false);
+    }
+  }
+
+  async function copyOutput(): Promise<void> {
+    if (!output) return;
+    try {
+      await navigator.clipboard.writeText(output);
+      setCopyStatus('Copied to clipboard.');
+    } catch {
+      setCopyStatus('Unable to copy output.');
+    }
   }
 
   async function openAction(action: DesktopAction): Promise<void> {
+    if (commandBusy) {
+      setOutput('Another command is still running. Wait for it to finish.');
+      return;
+    }
     setActiveAction(action.id);
     if (action.kind === 'cli-command') {
       await runCommand(action.command);
@@ -282,7 +308,9 @@ function App(): React.ReactElement {
 
         <footer className="composer">
           <input value={`/${mode}`} readOnly aria-label="Prompt" />
-          <button onClick={() => runCommand('help')}>Run</button>
+          <button disabled={commandBusy} onClick={() => runCommand('help')}>
+            {commandBusy ? 'Running…' : 'Run'}
+          </button>
         </footer>
       </section>
 
@@ -299,7 +327,12 @@ function App(): React.ReactElement {
           {tab === 'tools' && activeAction !== 'install' && activeAction !== 'skills' && activeAction !== 'clear' && (
             <div className="commandGrid">
               {desktopActions.map((card) => (
-                <button className="commandCard" key={card.id} onClick={() => void openAction(card)}>
+                <button
+                  className="commandCard"
+                  key={card.id}
+                  disabled={commandBusy}
+                  onClick={() => void openAction(card)}
+                >
                   <strong>{card.title}</strong>
                   <code>{card.command}</code>
                   <span>{card.description}</span>
@@ -386,7 +419,18 @@ function App(): React.ReactElement {
           )}
         </section>
 
-        <pre className="output">{output}</pre>
+        <div className="outputPanel">
+          <div className="outputHeader">
+            <span>{commandBusy ? 'Running command…' : 'Command output'}</span>
+            <div className="outputActions">
+              {copyStatus && <em className="copyStatus">{copyStatus}</em>}
+              <button type="button" disabled={!output || commandBusy} onClick={() => void copyOutput()}>
+                Copy output
+              </button>
+            </div>
+          </div>
+          <pre className="output" tabIndex={0}>{output}</pre>
+        </div>
       </aside>
     </main>
   );

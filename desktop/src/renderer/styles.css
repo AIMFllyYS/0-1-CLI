@@ -92,6 +92,13 @@ input {
   cursor: pointer;
 }
 
+.commandCard:disabled,
+.composer button:disabled,
+.confirmStrip button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .session {
   display: flex;
   justify-content: space-between;
@@ -434,11 +441,46 @@ input {
   background: rgba(255, 255, 255, 0.035);
 }
 
+.outputPanel {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.outputHeader,
+.outputActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.outputHeader span {
+  color: #9a9489;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.outputActions button {
+  border: 1px solid rgba(155, 231, 199, 0.42);
+  border-radius: 6px;
+  background: rgba(155, 231, 199, 0.08);
+  color: #9be7c7;
+  cursor: pointer;
+  padding: 7px 10px;
+}
+
+.copyStatus {
+  color: #b8b0a3;
+  font-size: 12px;
+  font-style: normal;
+}
+
 .output {
   min-height: 240px;
-  margin-top: 16px;
   overflow: auto;
   white-space: pre-wrap;
+  user-select: text;
   border: 1px solid rgba(244, 240, 232, 0.12);
   background: #0c0d0f;
   color: #b9f8d3;

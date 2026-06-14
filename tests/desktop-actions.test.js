@@ -102,3 +102,52 @@ test('desktop renderer opens native clear panel instead of running interactive c
   assert.match(renderer, /ClearPanel/);
   assert.doesNotMatch(renderer, /runCommand\('hi --clear'\)/);
 });
+
+test('desktop permissions deny interactive and arbitrary cli commands', () => {
+  const permissions = read('desktop/src/main/permissions.ts');
+  const runner = read('desktop/src/main/cli-runner.ts');
+  const allowedBlock = permissions.match(/ALLOWED_COMMANDS = new Set\(\[([\s\S]*?)\]\)/)?.[1] || '';
+  const interactiveBlock = permissions.match(/INTERACTIVE_COMMANDS = new Set\(\[([\s\S]*?)\]\)/)?.[1] || '';
+
+  assert.match(permissions, /validateDesktopCommand/);
+  assert.match(permissions, /INTERACTIVE_COMMANDS/);
+  assert.match(permissions, /ALLOWED_COMMANDS/);
+  assert.match(runner, /validateDesktopCommand/);
+  assert.match(interactiveBlock, /'clear'/);
+  assert.match(interactiveBlock, /'skills'/);
+  assert.match(interactiveBlock, /'install'/);
+  assert.match(interactiveBlock, /'ai'/);
+  assert.doesNotMatch(allowedBlock, /'clear'/);
+  assert.doesNotMatch(allowedBlock, /'skills'/);
+  assert.doesNotMatch(allowedBlock, /'install'/);
+  assert.doesNotMatch(allowedBlock, /'ai'/);
+});
+
+test('desktop cli runner times out long running commands', () => {
+  const runner = read('desktop/src/main/cli-runner.ts');
+
+  assert.match(runner, /CLI_TIMEOUT_MS/);
+  assert.match(runner, /\.kill\(/);
+  assert.match(runner, /timed out/i);
+});
+
+test('desktop renderer exposes copyable command output and busy guard', () => {
+  const renderer = read('desktop/src/renderer/App.tsx');
+  const styles = read('desktop/src/renderer/styles.css');
+
+  assert.match(renderer, /copyOutput/);
+  assert.match(renderer, /Copy output/);
+  assert.match(renderer, /commandBusy/);
+  assert.match(renderer, /outputPanel/);
+  assert.match(styles, /user-select:\s*text/);
+  assert.match(styles, /\.outputPanel/);
+  assert.match(styles, /\.outputHeader/);
+});
+
+test('desktop preload rejects non-whitelisted runCommand requests', () => {
+  const preload = read('desktop/src/preload/index.ts');
+  const permissions = read('desktop/src/main/permissions.ts');
+
+  assert.match(preload, /validateDesktopCommand/);
+  assert.match(permissions, /export function validateDesktopCommand/);
+});
