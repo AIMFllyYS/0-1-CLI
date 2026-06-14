@@ -1,5 +1,8 @@
 ﻿const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const test = require('node:test');
 
 execFileSync('cmd.exe', ['/c', 'npm run build --silent'], { stdio: 'pipe' });
@@ -76,6 +79,54 @@ test('subagent message builder scopes task context without account telemetry beh
   assert.doesNotMatch(messages.map((message) => message.content).join('\n'), /login|logout|oauth|telemetry|analytics|anthropic account/i);
 });
 
+test('AI subagent handler uses scoped prompt tool loop and allowed tool specs', async () => {
+  const { createAiSubagentHandler } = require('../dist/chat/agent/runner');
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-ai-subagent-'));
+  fs.writeFileSync(path.join(workspaceRoot, 'note.txt'), 'subagent UTF-8 中文', 'utf8');
+  const calls = [];
+  const task = {
+    id: 'sub-1',
+    status: 'running',
+    prompt: 'Read note.txt',
+    mode: 'agent',
+    permissionMode: 'bypass',
+    allowedTools: ['read_file'],
+    skillIds: ['test-driven-development'],
+    modelId: 'model-a',
+    currentPlan: 'Goal: verify subagent execution',
+    createdAt: Date.now(),
+  };
+
+  const handler = createAiSubagentHandler({
+    workspaceRoot,
+    complete: async (messages, runningTask, tools) => {
+      calls.push({ messages: messages.map((message) => message.content), tools: tools.map((tool) => tool.function.name), task: runningTask });
+      if (calls.length === 1) {
+        return {
+          role: 'assistant',
+          content: '',
+          tool_calls: [{
+            id: 'call-read',
+            type: 'function',
+            function: { name: 'read_file', arguments: JSON.stringify({ path: 'note.txt' }) },
+          }],
+        };
+      }
+      assert.equal(messages.at(-1).role, 'tool');
+      assert.match(messages.at(-1).content, /subagent UTF-8 中文/);
+      return { role: 'assistant', content: 'Read note.txt successfully.' };
+    },
+  });
+
+  const result = await handler(task);
+
+  assert.equal(result.summary, 'Read note.txt successfully.');
+  assert.deepEqual(calls[0].tools, ['read_file']);
+  assert.match(calls[0].messages[0], /Goal: verify subagent execution/);
+  assert.equal(calls[0].task.id, 'sub-1');
+  assert.match(result.notes.join('\n'), /toolResults=1/);
+});
+
 test('subagent permissions can narrow but not widen parent permissions', () => {
   const { createSubagentQueue, enqueueSubagent } = require('../dist/chat/agent/subagents');
 
@@ -130,4 +181,11 @@ test('agent spawn command forwards the current plan into subagent tasks', () => 
   const source = require('node:fs').readFileSync('src/chat/index.ts', 'utf8');
 
   assert.match(source, /currentPlan:\s*session\.currentPlan/);
+});
+
+test('agent spawn queue runs through AI subagent handler instead of placeholder handler', () => {
+  const source = require('node:fs').readFileSync('src/chat/index.ts', 'utf8');
+
+  assert.match(source, /createAiSubagentHandler/);
+  assert.match(source, /runNextSubagent\(hooks\.subagents,\s*createAiSubagentHandler/);
 });

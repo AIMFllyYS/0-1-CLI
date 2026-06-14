@@ -16,6 +16,7 @@ import { ActiveRuntimeSkill, discoverRuntimeSkills, formatSkillContextMessage, f
 import { createSubagentQueue, enqueueSubagent, cancelSubagent, formatSubagentList, resolveAgentCommand, runNextSubagent, setSubagentParentPermission } from './agent/subagents';
 import { SubagentQueue } from './agent/types';
 import { runAgentTurn } from './agent/loop';
+import { createAiSubagentHandler } from './agent/runner';
 import { renderPermissionBox, renderStatusHeader, renderTimelineEntry } from './ui/layout';
 import { SessionPermissionMemory } from './permissions/engine';
 import { applyPermissionPromptChoice, formatPermissionDecision, formatPermissionPromptOptions, parsePermissionPromptChoice } from './permissions/prompts';
@@ -149,6 +150,7 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
     runtimeSkills,
     syncSkillContext,
     subagents: session.subagents,
+    permissionSession,
     isSubagentWorkerActive: () => subagentWorkerActive,
     setSubagentWorkerActive: (active) => {
       subagentWorkerActive = active;
@@ -254,6 +256,7 @@ interface RuntimeHooks {
   runtimeSkills: RuntimeSkill[];
   syncSkillContext: () => void;
   subagents: SubagentQueue;
+  permissionSession: SessionPermissionMemory;
   isSubagentWorkerActive: () => boolean;
   setSubagentWorkerActive: (active: boolean) => void;
   setSubagentActiveWork: (cancel: (() => void) | null) => void;
@@ -511,7 +514,10 @@ function runSubagentQueueInBackground(hooks: RuntimeHooks): void {
             // The task may have completed between keypress and cancellation.
           }
         });
-        const completed = await runNextSubagent(hooks.subagents);
+        const completed = await runNextSubagent(hooks.subagents, createAiSubagentHandler({
+          workspaceRoot: process.cwd(),
+          session: hooks.permissionSession,
+        }));
         console.log(renderTimelineEntry({
           kind: 'subagent',
           status: completed.status,
