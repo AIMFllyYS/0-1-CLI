@@ -15,7 +15,7 @@ import { AiSessionState, createSessionState, formatCurrentPlan, loadCurrentPlanF
 import { ActiveRuntimeSkill, discoverRuntimeSkills, formatSkillContextMessage, formatSkillList, loadRuntimeSkillContent, resolveSkillSelection, RuntimeSkill, trimMessagesPreservingSkillContext, upsertSkillContextMessage } from './skills';
 import { createSubagentQueue, enqueueSubagent, cancelSubagent, formatSubagentList, resolveAgentCommand, runNextSubagent, setSubagentParentPermission } from './agent/subagents';
 import { SubagentQueue } from './agent/types';
-import { runAgentTurn } from './agent/loop';
+import { RunAgentTurnResult, runAgentTurn } from './agent/loop';
 import { resolveAgentDefinition } from './agent/definitions';
 import { createAiSubagentHandler } from './agent/runner';
 import { renderPermissionBox, renderStatusHeader, renderTimelineEntry } from './ui/layout';
@@ -224,13 +224,12 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
     messages.push({ role: 'user', content: input });
     foregroundBusy = true;
     try {
-      if (session.mode === 'agent') {
+      if (session.mode === 'agent' || session.mode === 'plan') {
         await streamAgentResponse(messages, currentModel, session, askPrompt, permissionSession, hooks);
       } else {
-        const response = await streamAIResponse(messages, currentModel, (cancel) => {
+        await streamAIResponse(messages, currentModel, (cancel) => {
           activeCancel = cancel;
         });
-        if (session.mode === 'plan' && response) recordCurrentPlan(session, response, { workspaceRoot: process.cwd() });
       }
     } finally {
       activeCancel = null;
@@ -832,6 +831,61 @@ function handleAgentTaskToolCall(
   };
 }
 
+type PlanApprovalResult = Extract<RunAgentTurnResult, { status: 'plan_approval_required' }>;
+
+async function handlePlanApprovalResult(input: {
+  result: PlanApprovalResult;
+  messages: ChatMessage[];
+  session: AiSessionState;
+  askLine: (prompt: string) => Promise<string>;
+  hooks: RuntimeHooks;
+}): Promise<void> {
+  const { result, messages, session, askLine, hooks } = input;
+  const plan = result.plan.trim();
+  if (plan) recordCurrentPlan(session, plan, { workspaceRoot: process.cwd() });
+  console.log(renderPermissionBox({
+    tool: result.pendingToolCall.function.name,
+    action: 'ask',
+    reason: 'Approve this plan and switch to agent mode?',
+  }));
+  if (session.currentPlanPath) {
+    console.log(chalk.gray(`  Plan file: ${session.currentPlanPath}`));
+  }
+  formatCurrentPlan(session).split('\n').forEach((line) => {
+    console.log(chalk.white('  ' + line));
+  });
+  if (result.permissions.length) {
+    console.log(chalk.gray('  Requested permissions:'));
+    result.permissions.forEach((permission) => {
+      console.log(chalk.gray(`  - ${permission.action}${permission.reason ? `: ${permission.reason}` : ''}`));
+    });
+  }
+  const answer = (await askLine(chalk.cyan('  Approve plan and enter agent mode? [y/N]: '))).trim().toLowerCase();
+  if (answer === 'y' || answer === 'yes') {
+    messages.push({
+      role: 'tool',
+      tool_call_id: result.pendingToolCall.id,
+      content: 'Plan approved by user. Switch to agent mode and implement the approved plan.',
+    });
+    setMode(session, 'agent');
+    setSubagentParentPermission(hooks.subagents, session.permissionMode);
+    messages[0] = { role: 'system', content: getSystemPrompt({
+      mode: session.mode,
+      permissionMode: session.permissionMode,
+      modelId: session.currentModelId,
+    }) };
+    hooks.syncSkillContext();
+    printSuccess('Plan approved. Switched to agent mode.');
+    return;
+  }
+  messages.push({
+    role: 'tool',
+    tool_call_id: result.pendingToolCall.id,
+    content: 'Plan was not approved by the user. Stay in plan mode and revise the plan.',
+  });
+  printWarning('Plan not approved. Staying in plan mode.');
+}
+
 async function streamAgentResponse(
   messages: ChatMessage[],
   model: ModelInfo,
@@ -856,6 +910,11 @@ async function streamAgentResponse(
     });
 
     spinner.stop();
+
+    if (result.status === 'plan_approval_required') {
+      await handlePlanApprovalResult({ result, messages, session, askLine, hooks });
+      return;
+    }
 
     while (result.status === 'permission_required') {
       if (messages[messages.length - 1] === result.assistantMessage) {
@@ -912,6 +971,15 @@ async function streamAgentResponse(
         return;
       }
       result = next;
+    }
+
+    if (result.status === 'plan_approval_required') {
+      await handlePlanApprovalResult({ result, messages, session, askLine, hooks });
+      return;
+    }
+
+    if (session.mode === 'plan' && result.finalMessage.content) {
+      recordCurrentPlan(session, result.finalMessage.content, { workspaceRoot: process.cwd() });
     }
 
     result.toolResults.forEach((toolResult) => {

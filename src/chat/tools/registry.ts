@@ -67,6 +67,13 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
     allowedModes: ['agent'],
     requiresPermission: false,
   },
+  {
+    name: 'exit_plan_mode',
+    kind: 'agent',
+    description: 'Request user approval for a completed plan and leave plan mode if approved',
+    allowedModes: ['plan'],
+    requiresPermission: false,
+  },
 ];
 
 export function getToolDefinition(name: string): ToolDefinition {
@@ -147,6 +154,17 @@ function parametersForTool(name: string): ProviderToolSpec['function']['paramete
         subagent_type: { type: 'string', description: 'Optional subagent type hint. Defaults to general-purpose.' },
       },
       required: ['description', 'prompt'],
+      additionalProperties: false,
+    };
+  }
+  if (name === 'exit_plan_mode') {
+    return {
+      type: 'object',
+      properties: {
+        plan: { type: 'string', description: 'The complete implementation plan to present for approval.' },
+        permissions: { type: 'array', description: 'Prompt-based permission categories needed to implement the plan.', items: { type: 'object' } },
+      },
+      required: ['plan'],
       additionalProperties: false,
     };
   }

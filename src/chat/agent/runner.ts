@@ -78,6 +78,17 @@ export function createAiSubagentHandler(options: AiSubagentHandlerOptions): (tas
       };
     }
 
+    if (result.status === 'plan_approval_required') {
+      return {
+        summary: 'Plan approval required',
+        notes: [
+          `plan=${result.plan}`,
+          `permissions=${result.permissions.map((permission) => permission.action).join(',') || 'none'}`,
+          `toolResults=${result.toolResults.length}`,
+        ],
+      };
+    }
+
     return {
       summary: result.finalMessage.content || 'Subagent completed.',
       notes: [

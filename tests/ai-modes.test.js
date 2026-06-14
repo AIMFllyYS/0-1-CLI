@@ -127,15 +127,26 @@ test('chat loop consumes queued slash-command input before prompting again', () 
   assert.match(source, /'nextInput'\s+in\s+handled/);
 });
 
-test('chat loop records plan replies and lets /plan show the current plan', () => {
+test('plan-aware loop records plan replies and lets /plan show the current plan', () => {
   const source = readFileSync('src/chat/index.ts', 'utf8');
 
-  assert.match(source, /recordCurrentPlan\(session,\s*response,\s*\{\s*workspaceRoot:\s*process\.cwd\(\)\s*\}\)/);
+  assert.match(source, /handlePlanApprovalResult/);
+  assert.match(source, /recordCurrentPlan\(session,\s*plan,\s*\{\s*workspaceRoot:\s*process\.cwd\(\)\s*\}\)/);
+  assert.match(source, /session\.mode === 'plan' && result\.finalMessage\.content/);
+  assert.match(source, /recordCurrentPlan\(session,\s*result\.finalMessage\.content,\s*\{\s*workspaceRoot:\s*process\.cwd\(\)\s*\}\)/);
   assert.match(source, /formatCurrentPlan\(session\)/);
   assert.match(source, /cmd === '\/plan' && !args\.trim\(\) && session\.mode === 'plan'/);
   assert.match(source, /args\.trim\(\)\.toLowerCase\(\) === 'open'/);
   assert.match(source, /currentPlanPath:\s*session\.currentPlanPath/);
   assert.match(source, /loadCurrentPlanFromWorkspace\(session,\s*process\.cwd\(\)\)/);
+});
+
+test('plan mode uses the tool-aware agent loop for exit plan approval', () => {
+  const source = readFileSync('src/chat/index.ts', 'utf8');
+
+  assert.match(source, /session\.mode === 'agent' \|\| session\.mode === 'plan'/);
+  assert.match(source, /result\.status === 'plan_approval_required'/);
+  assert.match(source, /setMode\(session,\s*'agent'\)/);
 });
 
 test('mode metadata and cycle mirror Claude-style footer modes', () => {

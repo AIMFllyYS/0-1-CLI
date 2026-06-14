@@ -87,7 +87,8 @@ export function buildModePromptSection(mode: AiMode, permissionMode: PermissionM
       '- Steps: list the smallest useful execution sequence in order.',
       '- Risks: name permission, encoding, data-loss, dependency, and rollback risks.',
       '- Verification: name the commands, tests, screenshots, or artifacts that would prove completion.',
-      'Ask the user to switch to /agent before execution.',
+      'When the plan is complete, call exit_plan_mode with the final plan and requested permissions so the user can approve the switch to agent mode.',
+      'Do not execute the plan until the user approves exit_plan_mode.',
     ].join('\n');
   }
   return [

@@ -62,6 +62,8 @@ test('plan and agent mode prompts include Claude-style operating contracts', () 
   assert.match(plan, /Verification/);
   assert.match(plan, /Do not execute/i);
   assert.match(plan, /ask clarifying questions/i);
+  assert.match(plan, /exit_plan_mode/);
+  assert.match(plan, /permissions/i);
 
   assert.match(agentAsk, /Execution Loop/);
   assert.match(agentAsk, /Inspect/);

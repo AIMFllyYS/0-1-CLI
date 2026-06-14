@@ -114,8 +114,19 @@ test('provider tool schemas are filtered by active mode before the model sees th
   const namesFor = (mode) => buildProviderToolSpecs(mode).map((spec) => spec.function.name);
 
   assert.deepEqual(namesFor('chat').sort(), ['list_files', 'read_file', 'search_files']);
-  assert.deepEqual(namesFor('plan').sort(), ['list_files', 'read_file', 'search_files']);
+  assert.deepEqual(namesFor('plan').sort(), ['exit_plan_mode', 'list_files', 'read_file', 'search_files']);
   assert.ok(namesFor('agent').includes('write_file'));
   assert.ok(namesFor('agent').includes('shell'));
   assert.ok(namesFor('agent').includes('task'));
+  assert.ok(!namesFor('agent').includes('exit_plan_mode'));
+});
+
+test('exit plan mode schema carries plan and permission categories', () => {
+  const { buildProviderToolSpecs } = require('../dist/chat/tools/registry');
+  const exitPlan = buildProviderToolSpecs('plan').find((spec) => spec.function.name === 'exit_plan_mode');
+
+  assert.ok(exitPlan);
+  assert.deepEqual(exitPlan.function.parameters.required, ['plan']);
+  assert.equal(exitPlan.function.parameters.properties.plan.type, 'string');
+  assert.equal(exitPlan.function.parameters.properties.permissions.type, 'array');
 });

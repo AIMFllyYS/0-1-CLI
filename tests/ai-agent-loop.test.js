@@ -130,3 +130,40 @@ test('agent loop can delegate Claude-style task tool calls to subagent handler',
     subagent_type: 'general-purpose',
   });
 });
+
+test('agent loop turns exit_plan_mode into a plan approval request', async () => {
+  const { runAgentTurn } = require('../dist/chat/agent/loop');
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-agent-loop-exit-plan-'));
+  const messages = [
+    { role: 'system', content: 'system' },
+    { role: 'user', content: 'draft plan' },
+  ];
+
+  const result = await runAgentTurn({
+    messages,
+    workspaceRoot,
+    mode: 'plan',
+    permissionMode: 'plan',
+    complete: async () => ({
+      role: 'assistant',
+      content: '',
+      tool_calls: [{
+        id: 'call-exit-plan',
+        type: 'function',
+        function: {
+          name: 'exit_plan_mode',
+          arguments: JSON.stringify({
+            plan: 'Goal: 保留 UTF-8 中文\nSteps:\n- implement safely',
+            permissions: [{ action: 'edit files', reason: 'implement plan' }],
+          }),
+        },
+      }],
+    }),
+  });
+
+  assert.equal(result.status, 'plan_approval_required');
+  assert.equal(result.pendingToolCall.id, 'call-exit-plan');
+  assert.match(result.plan, /保留 UTF-8 中文/);
+  assert.deepEqual(result.permissions, [{ action: 'edit files', reason: 'implement plan' }]);
+  assert.equal(messages.at(-1).tool_calls[0].function.name, 'exit_plan_mode');
+});

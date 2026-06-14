@@ -20,6 +20,11 @@ export interface AgentToolResult {
   permission: PermissionDecision;
 }
 
+export interface PlanPermissionRequest {
+  action: string;
+  reason?: string;
+}
+
 export type RunAgentTurnResult =
   | {
       status: 'completed';
@@ -33,7 +38,36 @@ export type RunAgentTurnResult =
       assistantMessage: ChatMessage;
       toolMessage: ChatMessage;
       toolResults: AgentToolResult[];
+    }
+  | {
+      status: 'plan_approval_required';
+      pendingToolCall: ToolCall;
+      assistantMessage: ChatMessage;
+      plan: string;
+      permissions: PlanPermissionRequest[];
+      toolResults: AgentToolResult[];
     };
+
+function parseToolArguments(toolCall: ToolCall): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(toolCall.function.arguments || '{}');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return parsed as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function parsePlanPermissions(value: unknown): PlanPermissionRequest[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
+    .map((item) => ({
+      action: typeof item.action === 'string' ? item.action : '',
+      reason: typeof item.reason === 'string' ? item.reason : undefined,
+    }))
+    .filter((item) => item.action.trim());
+}
 
 export async function runAgentTurn(input: RunAgentTurnInput): Promise<RunAgentTurnResult> {
   const toolResults: AgentToolResult[] = [];
@@ -49,6 +83,18 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<RunAgentTu
     }
 
     for (const toolCall of toolCalls) {
+      if (toolCall.function.name === 'exit_plan_mode' && input.mode === 'plan') {
+        const args = parseToolArguments(toolCall);
+        return {
+          status: 'plan_approval_required',
+          pendingToolCall: toolCall,
+          assistantMessage,
+          plan: typeof args.plan === 'string' ? args.plan : '',
+          permissions: parsePlanPermissions(args.permissions),
+          toolResults,
+        };
+      }
+
       if (toolCall.function.name === 'task' && input.mode === 'agent' && input.handleAgentTool) {
         const message = await input.handleAgentTool(toolCall);
         input.messages.push(message);
