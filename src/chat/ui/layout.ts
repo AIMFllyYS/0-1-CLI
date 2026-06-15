@@ -70,6 +70,27 @@ export interface ThinkingStateInput {
   detail?: string;
 }
 
+export interface AgentProgressEventInput {
+  event: {
+    type: string;
+    round?: number;
+    messageCount?: number;
+    content?: string;
+    toolCallCount?: number;
+    toolCallId?: string;
+    toolName?: string;
+    permissionDecision?: string;
+    contentPreview?: string;
+    reason?: string;
+    status?: string;
+    toolResultCount?: number;
+    permissionCount?: number;
+    planPreview?: string;
+  };
+  model?: string;
+  mode?: AiMode;
+}
+
 export interface SubagentTimelineInput {
   id: string;
   status: TimelineEntryInput['status'];
@@ -230,6 +251,78 @@ export function renderThinkingState(input: ThinkingStateInput): string {
     : '';
   const metaText = meta ? ui.muted(` ${meta}`) : '';
   return `${INDENT}${ui.muted(glyphs.diamondOpen)} ${ui.strong(truncateVisible(input.label, 14))} ${statusText}${metaText}${detail}`;
+}
+
+export function renderAgentProgressEvent(input: AgentProgressEventInput): string {
+  const { event } = input;
+  if (event.type === 'turn_start') {
+    return renderThinkingState({
+      label: 'Agent',
+      status: 'thinking',
+      model: input.model,
+      mode: input.mode,
+      detail: `round ${event.round || 1} with ${event.messageCount || 0} messages`,
+    });
+  }
+  if (event.type === 'assistant_message') {
+    return renderThinkingState({
+      label: 'Agent',
+      status: event.toolCallCount ? 'reasoning' : 'responding',
+      model: input.model,
+      mode: input.mode,
+      detail: event.toolCallCount ? `${event.toolCallCount} tool calls requested` : 'drafting final response',
+    });
+  }
+  if (event.type === 'tool_start') {
+    return renderTimelineEntry({
+      kind: 'tool',
+      status: 'running',
+      label: event.toolName || 'tool',
+      detail: `round ${event.round || 1}`,
+    });
+  }
+  if (event.type === 'tool_result') {
+    return renderTimelineEntry({
+      kind: 'tool',
+      status: event.permissionDecision === 'deny' ? 'failed' : 'completed',
+      label: event.toolName || 'tool',
+      detail: [event.permissionDecision || '', event.contentPreview || ''].filter(Boolean).join(' '),
+    });
+  }
+  if (event.type === 'permission_required') {
+    return renderThinkingState({
+      label: 'Agent',
+      status: 'waiting',
+      model: input.model,
+      mode: input.mode,
+      detail: `${event.toolName || 'tool'} permission required`,
+    });
+  }
+  if (event.type === 'plan_approval_required') {
+    return renderThinkingState({
+      label: 'Plan',
+      status: 'waiting',
+      model: input.model,
+      mode: input.mode,
+      detail: `${event.permissionCount || 0} permissions requested`,
+    });
+  }
+  if (event.type === 'turn_complete') {
+    return renderThinkingState({
+      label: 'Agent',
+      status: 'responding',
+      model: input.model,
+      mode: input.mode,
+      detail: `${event.toolResultCount || 0} tool results ready`,
+    });
+  }
+  return renderThinkingState({
+    label: 'Agent',
+    status: 'thinking',
+    model: input.model,
+    mode: input.mode,
+    detail: event.type,
+  });
 }
 
 function formatSubagentTimelineDetail(input: SubagentTimelineInput): string {

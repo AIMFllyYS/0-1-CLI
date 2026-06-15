@@ -134,6 +134,49 @@ test('thinking state line renders model mode detail and stays within width', () 
   assert.ok(visibleLength(output) <= 66, `thinking line too wide: ${plain}`);
 });
 
+test('agent progress events render live tool and waiting state lines', () => {
+  const { renderAgentProgressEvent } = require('../dist/chat/ui/layout');
+
+  const running = renderAgentProgressEvent({
+    event: { type: 'tool_start', round: 1, toolName: 'read_file', toolCallId: 'call-1' },
+    mode: 'agent',
+    model: 'glm-4.5-super-long-model-name',
+  });
+  const completed = renderAgentProgressEvent({
+    event: {
+      type: 'tool_result',
+      round: 1,
+      toolName: 'read_file',
+      toolCallId: 'call-1',
+      permissionDecision: 'allow',
+      contentPreview: 'README.md loaded with UTF-8 中文',
+    },
+    mode: 'agent',
+    model: 'glm-4.5-super-long-model-name',
+  });
+  const waiting = renderAgentProgressEvent({
+    event: {
+      type: 'permission_required',
+      round: 1,
+      toolName: 'write_file',
+      toolCallId: 'call-2',
+      reason: 'write requires confirmation',
+    },
+    mode: 'agent',
+  });
+
+  assert.match(stripAnsi(running), /read_file/);
+  assert.match(stripAnsi(running), /running/);
+  assert.match(stripAnsi(completed), /completed/);
+  assert.match(stripAnsi(completed), /UTF-8 中文/);
+  assert.match(stripAnsi(waiting), /waiting/);
+  assert.match(stripAnsi(waiting), /write_file/);
+  assertNoMojibake(running + completed + waiting, 'agent progress events');
+  for (const line of [running, completed, waiting]) {
+    assert.ok(visibleLength(line) <= 66, `agent progress line too wide: ${stripAnsi(line)}`);
+  }
+});
+
 test('subagent timeline entry renders queued completed failed and cancelled rows with metrics', () => {
   const { renderSubagentTimelineEntry } = require('../dist/chat/ui/layout');
 
@@ -236,7 +279,9 @@ test('permission box formatter is wired into chat runtime', () => {
 
   assert.match(source, /formatPermissionDecision/);
   assert.match(source, /renderPlanApprovalPanel/);
+  assert.match(source, /renderAgentProgressEvent/);
   assert.match(source, /renderThinkingState/);
+  assert.match(source, /onEvent:\s*\(event\)/);
   assert.match(source, /subagent runs in/);
 });
 

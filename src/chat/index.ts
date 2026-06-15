@@ -16,10 +16,10 @@ import { AiSessionState, createSessionState, formatCurrentPlan, loadCurrentPlanF
 import { ActiveRuntimeSkill, discoverRuntimeSkills, formatSkillContextMessage, formatSkillList, loadRuntimeSkillContent, resolveSkillSelection, RuntimeSkill, trimMessagesPreservingSkillContext, upsertSkillContextMessage } from './skills';
 import { createSubagentQueue, enqueueSubagent, cancelSubagent, formatSubagentList, resolveAgentCommand, runSubagentScheduler, setSubagentParentPermission, buildSubagentTimelineInput } from './agent/subagents';
 import { SubagentQueue, SubagentTask } from './agent/types';
-import { RunAgentTurnResult, runAgentTurn } from './agent/loop';
+import { AgentTurnEvent, RunAgentTurnResult, runAgentTurn } from './agent/loop';
 import { resolveAgentDefinition } from './agent/definitions';
 import { createAiSubagentHandler } from './agent/runner';
-import { renderPermissionBox, renderPlanApprovalPanel, renderStatusHeader, renderSubagentTimelineEntry, renderThinkingState, renderTimelineEntry } from './ui/layout';
+import { renderAgentProgressEvent, renderPermissionBox, renderPlanApprovalPanel, renderStatusHeader, renderSubagentTimelineEntry, renderThinkingState, renderTimelineEntry } from './ui/layout';
 import { SessionPermissionMemory } from './permissions/engine';
 import { applyPermissionPromptChoice, formatPermissionDecision, formatPermissionPromptOptions, parsePermissionPromptChoice } from './permissions/prompts';
 import { buildProviderToolSpecs } from './tools/registry';
@@ -921,6 +921,18 @@ async function streamAgentResponse(
   }));
   spinner.start();
   const userMessage = messages[messages.length - 1];
+  const renderedToolCallIds = new Set<string>();
+  const renderAgentEvent = (event: AgentTurnEvent): void => {
+    if (event.type === 'turn_start' && event.round === 1) return;
+    if (event.type === 'assistant_message' && event.toolCallCount === 0) return;
+    if (spinner.isRunning()) spinner.stop();
+    if (event.type === 'tool_result') renderedToolCallIds.add(event.toolCallId);
+    console.log(renderAgentProgressEvent({
+      event,
+      model: model.name,
+      mode: session.mode,
+    }));
+  };
 
   try {
     let result = await runAgentTurn({
@@ -930,6 +942,7 @@ async function streamAgentResponse(
       permissionMode: session.permissionMode,
       session: permissionSession,
       handleAgentTool: (toolCall) => handleAgentTaskToolCall(toolCall, model, session, hooks),
+      onEvent: (event) => renderAgentEvent(event),
       complete: (nextMessages) => chatCompleteMessage(nextMessages, model, buildProviderToolSpecs(session.mode)),
     });
 
@@ -1006,7 +1019,7 @@ async function streamAgentResponse(
       recordCurrentPlan(session, result.finalMessage.content, { workspaceRoot: process.cwd() });
     }
 
-    result.toolResults.forEach((toolResult) => {
+    result.toolResults.filter((toolResult) => !renderedToolCallIds.has(toolResult.toolCall.id)).forEach((toolResult) => {
       console.log(renderTimelineEntry({
         kind: 'tool',
         status: toolResult.message.content.startsWith('Error:') ? 'failed' : 'completed',
