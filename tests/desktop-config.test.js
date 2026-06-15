@@ -24,6 +24,7 @@ test('desktop package uses electron vite react and electron-builder targets', ()
   assert.ok(pkg.devDependencies.electron);
   assert.ok(pkg.devDependencies['electron-builder']);
   assert.ok(pkg.devDependencies.vite);
+  assert.equal(pkg.repository.url, 'https://github.com/AIMFllyYS/0-1-CLI.git');
   assert.match(pkg.scripts.build, /copy:cli/);
   assert.match(builder, /nsis/);
   assert.match(builder, /dmg/);
@@ -104,6 +105,8 @@ test('desktop builder is wired for GitHub release publishing', () => {
   const builder = fs.readFileSync(path.join('desktop', 'electron-builder.yml'), 'utf8');
 
   assert.match(builder, /provider: github/);
+  assert.match(builder, /owner: AIMFllyYS/);
+  assert.match(builder, /repo: 0-1-CLI/);
   assert.match(builder, /releaseType: release/);
 });
 

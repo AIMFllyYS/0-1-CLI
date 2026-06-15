@@ -21,4 +21,6 @@ nsis:
   allowToChangeInstallationDirectory: true
 publish:
   provider: github
+  owner: AIMFllyYS
+  repo: 0-1-CLI
   releaseType: release

@@ -3,6 +3,10 @@
   "version": "0.6.15",
   "private": true,
   "description": "Desktop shell for 0-1 CLI AI workflows",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AIMFllyYS/0-1-CLI.git"
+  },
   "main": "dist/main/main.js",
   "scripts": {
     "copy:cli": "node scripts/copy-cli.cjs",
