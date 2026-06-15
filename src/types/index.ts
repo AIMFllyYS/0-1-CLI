@@ -5,7 +5,10 @@ export interface ModelInfo {
   name: string;
   provider: 'deepseek' | 'zhipu' | 'custom';
   description: string;
+  source?: 'builtin' | 'custom';
   supportsSearch?: boolean;
+  supportsTools?: boolean;
+  openAiCompatible?: boolean;
   contextLength?: number;
   modalities?: string[];
 }

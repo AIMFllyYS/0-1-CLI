@@ -1,4 +1,5 @@
 import type { SubagentQueue } from './agent/types';
+import { getCurrentPlanPath, readCurrentPlanFile, writeCurrentPlanFile } from './plan-store';
 
 export type AiMode = 'chat' | 'agent' | 'plan';
 export type PermissionMode = 'ask' | 'bypass' | 'plan';
@@ -15,6 +16,8 @@ export interface AiSessionState {
   autoAccept: boolean;
   inSubmenu: boolean;
   activeSkillIds: string[];
+  currentPlan?: string;
+  currentPlanPath?: string;
   subagents?: SubagentQueue;
 }
 
@@ -44,6 +47,32 @@ export function setMode(state: AiSessionState, mode: AiMode): AiSessionState {
 export function setCurrentModel(state: AiSessionState, modelId: string): AiSessionState {
   state.currentModelId = modelId;
   return state;
+}
+
+export function recordCurrentPlan(state: AiSessionState, content: string, options: { workspaceRoot?: string } = {}): AiSessionState {
+  const trimmed = content.trim();
+  if (trimmed) {
+    state.currentPlan = trimmed;
+    if (options.workspaceRoot) {
+      state.currentPlanPath = writeCurrentPlanFile(options.workspaceRoot, trimmed);
+    }
+  }
+  return state;
+}
+
+export function loadCurrentPlanFromWorkspace(state: AiSessionState, workspaceRoot: string): AiSessionState {
+  const currentPlan = readCurrentPlanFile(workspaceRoot);
+  if (currentPlan) {
+    state.currentPlan = currentPlan;
+    state.currentPlanPath = getCurrentPlanPath(workspaceRoot);
+  }
+  return state;
+}
+
+export function formatCurrentPlan(state: Pick<AiSessionState, 'currentPlan' | 'currentPlanPath'>): string {
+  const plan = state.currentPlan?.trim();
+  if (!plan) return 'No current plan yet. Use /plan <task> to draft one.';
+  return state.currentPlanPath ? `Plan file: ${state.currentPlanPath}\n\n${plan}` : plan;
 }
 
 export function describeMode(state: AiSessionState): string {

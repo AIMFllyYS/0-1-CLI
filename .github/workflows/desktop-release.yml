@@ -5,6 +5,9 @@ on:
   release:
     types: [created]
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -20,6 +23,15 @@ jobs:
         with:
           name: desktop-windows
           path: desktop/release/**
+      - uses: softprops/action-gh-release@v2
+        if: github.event_name == 'release'
+        with:
+          fail_on_unmatched_files: false
+          files: |
+            desktop/release/*.exe
+            desktop/release/*.zip
+            desktop/release/*.blockmap
+            desktop/release/latest*.yml
 
   build-macos:
     runs-on: macos-latest
@@ -35,3 +47,12 @@ jobs:
         with:
           name: desktop-macos
           path: desktop/release/**
+      - uses: softprops/action-gh-release@v2
+        if: github.event_name == 'release'
+        with:
+          fail_on_unmatched_files: false
+          files: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.blockmap
+            desktop/release/latest*.yml

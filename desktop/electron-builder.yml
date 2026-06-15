@@ -1,5 +1,6 @@
 appId: com.zeroone.cli.desktop
 productName: 0-1 CLI
+artifactName: ${productName}-${version}-${os}.${ext}
 directories:
   output: release
 files:
@@ -18,3 +19,6 @@ nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+publish:
+  provider: github
+  releaseType: release

@@ -166,3 +166,116 @@ test('loadRuntimeSkillContent reads bounded content only when activated', () => 
   assert.equal(loaded.content.length, 256);
   assert.equal(loaded.truncated, true);
 });
+
+test('runtime skills parse YAML frontmatter including when_to_use trigger text', () => {
+  const { discoverRuntimeSkills } = require('../dist/chat/skills');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-skills-frontmatter-'));
+  makeSkill(root, 'pdf-helper', [
+    '---',
+    'name: PDF Helper',
+    'description: Extract and summarize PDF files',
+    'when_to_use: Use when the user mentions PDFs, forms, or scanned documents',
+    '---',
+    '',
+    '# PDF Helper',
+    '',
+    'Full body should not be required for metadata.',
+  ].join('\n'));
+
+  const [skill] = discoverRuntimeSkills({ roots: [root] });
+
+  assert.equal(skill.name, 'PDF Helper');
+  assert.match(skill.description, /PDF files/);
+  assert.match(skill.whenToUse, /scanned documents/);
+  assert.equal('content' in skill, false);
+});
+
+test('searchRuntimeSkills ranks id matches ahead of description-only matches', () => {
+  const { searchRuntimeSkills } = require('../dist/chat/skills');
+  const skills = [
+    {
+      id: 'alpha',
+      name: 'Alpha',
+      description: 'mentions beta in description',
+      whenToUse: '',
+      path: 'a',
+      skillFile: 'a/SKILL.md',
+    },
+    {
+      id: 'beta-tool',
+      name: 'Beta Tool',
+      description: 'does beta things',
+      whenToUse: '',
+      path: 'b',
+      skillFile: 'b/SKILL.md',
+    },
+  ];
+
+  const results = searchRuntimeSkills('beta', skills);
+
+  assert.equal(results.length, 2);
+  assert.equal(results[0].skill.id, 'beta-tool');
+});
+
+test('searchRuntimeSkills matches trigger text from when_to_use', () => {
+  const { searchRuntimeSkills } = require('../dist/chat/skills');
+  const skills = [
+    {
+      id: 'onboarding',
+      name: 'Onboarding',
+      description: 'Guide new users',
+      whenToUse: 'Use when the user says they are a beginner or first-time user',
+      path: 'x',
+      skillFile: 'x/SKILL.md',
+    },
+  ];
+
+  const results = searchRuntimeSkills('first-time', skills);
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].skill.id, 'onboarding');
+});
+
+test('resolveSkillSelection prefers the highest ranked search match', () => {
+  const { resolveSkillSelection } = require('../dist/chat/skills');
+  const skills = [
+    {
+      id: 'docs',
+      name: 'Docs',
+      description: 'Write documentation for APIs',
+      whenToUse: '',
+      path: 'd',
+      skillFile: 'd/SKILL.md',
+    },
+    {
+      id: 'api-review',
+      name: 'API Review',
+      description: 'Review API changes',
+      whenToUse: '',
+      path: 'a',
+      skillFile: 'a/SKILL.md',
+    },
+  ];
+
+  assert.equal(resolveSkillSelection('api', skills).skill.id, 'api-review');
+});
+
+test('formatSkillSearchResults renders ranked matches for slash search', () => {
+  const { formatSkillSearchResults } = require('../dist/chat/skills');
+  const output = formatSkillSearchResults('pdf', [
+    {
+      skill: {
+        id: 'pdf',
+        name: 'PDF',
+        description: 'Work with PDF files',
+        whenToUse: 'Use for PDF tasks',
+        path: 'p',
+        skillFile: 'p/SKILL.md',
+      },
+      score: 900,
+    },
+  ]);
+
+  assert.match(output, /pdf/);
+  assert.match(output, /PDF tasks/);
+});

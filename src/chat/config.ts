@@ -15,6 +15,14 @@ export function parseModelIds(value?: string): string[] {
     .filter(Boolean);
 }
 
+export function maskApiKey(apiKey: string): string {
+  const trimmed = apiKey.trim();
+  if (!trimmed) return '空';
+  if (trimmed.length <= 6) return '*'.repeat(trimmed.length);
+  const visible = Math.min(4, Math.floor(trimmed.length / 4));
+  return `${trimmed.slice(0, visible)}${'*'.repeat(Math.max(trimmed.length - visible * 2, 4))}${trimmed.slice(-visible)}`;
+}
+
 export function parseAiEnv(env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env): AiSettings {
   const modelIds = parseModelIds(env.AI_MODELS || env.AI_MODEL || '');
   const activeModelId = (env.AI_MODEL || modelIds[0] || '').trim();
@@ -66,4 +74,10 @@ export function getConfiguredModelIds(env: NodeJS.ProcessEnv | Record<string, st
 
 export function getActiveModelId(env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env): string {
   return parseAiEnv(env).activeModelId;
+}
+
+export function updateActiveModelId(envPath: string, settings: AiSettings, modelId: string): AiSettings {
+  const next = { ...settings, activeModelId: modelId };
+  writeAiSettings(envPath, next);
+  return next;
 }

@@ -31,6 +31,12 @@ input {
   min-height: 100vh;
 }
 
+.sidebar {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+}
+
 .sidebar,
 .inspector {
   border-color: rgba(244, 240, 232, 0.12);
@@ -41,6 +47,25 @@ input {
 .sidebar {
   border-right: 1px solid rgba(244, 240, 232, 0.12);
   padding: 22px;
+}
+
+.railFooter {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid rgba(244, 240, 232, 0.1);
+}
+
+.railFooter p {
+  margin: 0 0 6px;
+  color: #9a9489;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.railFooter span {
+  color: #b8b0a3;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .brand {
@@ -73,13 +98,15 @@ input {
 }
 
 .sessionList,
-.stack {
+.stack,
+.commandGrid {
   display: grid;
   gap: 10px;
 }
 
 .session,
 .stack button,
+.commandCard,
 .tabs button,
 .modeSwitch button,
 .composer button {
@@ -88,6 +115,13 @@ input {
   background: #17191c;
   color: #f4f0e8;
   cursor: pointer;
+}
+
+.commandCard:disabled,
+.composer button:disabled,
+.confirmStrip button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .session {
@@ -99,8 +133,41 @@ input {
 
 .conversation {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   min-width: 0;
+  min-height: 100vh;
+}
+
+.modeSwitchWrap {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.modeHint {
+  margin: 0;
+  color: #9a9489;
+  font-size: 12px;
+}
+
+.conversationStatus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 26px;
+  border-bottom: 1px solid rgba(244, 240, 232, 0.08);
+  color: #b8b0a3;
+  font-size: 13px;
+}
+
+.modeBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid rgba(155, 231, 199, 0.35);
+  border-radius: 999px;
+  color: #9be7c7;
+  font-size: 12px;
 }
 
 .topbar {
@@ -161,10 +228,30 @@ input {
 }
 
 .composer {
-  display: flex;
+  display: grid;
   gap: 10px;
-  padding: 18px 26px;
+  padding: 18px 26px 22px;
   border-top: 1px solid rgba(244, 240, 232, 0.1);
+  background: rgba(12, 13, 15, 0.72);
+}
+
+.composerField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.composerPrefix {
+  color: #9be7c7;
+  font-weight: 700;
+  min-width: 58px;
+}
+
+.composerHint {
+  margin: 0;
+  color: #9a9489;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .composer input {
@@ -181,9 +268,246 @@ input {
   padding: 11px 14px;
 }
 
+.commandGrid {
+  grid-template-columns: 1fr;
+}
+
+.commandCard {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  text-align: left;
+}
+
+.commandCard strong {
+  color: #f4f0e8;
+}
+
+.commandCard code {
+  color: #9be7c7;
+}
+
+.commandCard span,
+.stack p,
+.installTarget span,
+.skillPackage span,
+.confirmStrip span {
+  color: #b8b0a3;
+  line-height: 1.45;
+}
+
+.stack a {
+  color: #9be7c7;
+}
+
+.releaseStatus {
+  color: #b8b0a3;
+  font-size: 13px;
+}
+
+.releaseAssets {
+  display: grid;
+  gap: 9px;
+  padding-top: 6px;
+}
+
+.releaseMeta {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 4px;
+}
+
+.releaseMeta span {
+  color: #9a9489;
+  font-size: 12px;
+}
+
+.releaseAsset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(244, 240, 232, 0.14);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.releaseAsset span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.releaseAsset strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.releaseAsset em {
+  color: #b8b0a3;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.releaseAsset button {
+  border: 1px solid rgba(155, 231, 199, 0.42);
+  border-radius: 6px;
+  background: rgba(155, 231, 199, 0.08);
+  color: #9be7c7;
+  cursor: pointer;
+  padding: 8px 10px;
+}
+
+.installPanel,
+.skillsPanel,
+.clearPanel {
+  display: grid;
+  gap: 14px;
+}
+
+.panelHeader,
+.headerActions,
+.confirmStrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panelHeader p,
+.panelHeader h2 {
+  margin: 0;
+}
+
+.panelHeader p {
+  color: #9a9489;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.panelHeader h2 {
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.panelHeader button,
+.confirmStrip button,
+.categorySwitch button,
+.installTarget,
+.clearProcess {
+  border: 1px solid rgba(244, 240, 232, 0.14);
+  border-radius: 6px;
+  background: #17191c;
+  color: #f4f0e8;
+  cursor: pointer;
+}
+
+.panelHeader button,
+.confirmStrip button,
+.categorySwitch button {
+  padding: 8px 11px;
+}
+
+.categorySwitch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.installTargets {
+  display: grid;
+  gap: 9px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.installTarget,
+.skillPackage,
+.clearProcess {
+  display: grid;
+  gap: 6px;
+  padding: 11px;
+  text-align: left;
+}
+
+.clearProcesses {
+  display: grid;
+  gap: 9px;
+  max-height: 340px;
+  overflow: auto;
+}
+
+.clearProcess {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+}
+
+.clearProcess span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.clearProcess em,
+.clearProcess small,
+.emptyState {
+  color: #b8b0a3;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.45;
+}
+
+.skillPackages {
+  display: grid;
+  gap: 9px;
+}
+
+.skillPackage code {
+  color: #9be7c7;
+  font-size: 12px;
+}
+
+.targetChecklist {
+  display: grid;
+  gap: 8px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid rgba(244, 240, 232, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.selectedTarget {
+  border-color: #f0c36a;
+  background: rgba(240, 195, 106, 0.08);
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #d8d0c2;
+  font-size: 13px;
+}
+
+.confirmStrip {
+  border-top: 1px solid rgba(244, 240, 232, 0.12);
+  padding-top: 12px;
+}
+
+.confirmStrip button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .inspector {
   border-left: 1px solid rgba(244, 240, 232, 0.12);
   padding: 20px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
 }
 
 .tabs {
@@ -196,13 +520,82 @@ input {
   padding: 14px;
   border: 1px solid rgba(244, 240, 232, 0.12);
   background: rgba(255, 255, 255, 0.035);
+  overflow: auto;
+}
+
+.settingsPanel,
+.settingsCopy,
+.settingsActions,
+.settingsSection {
+  display: grid;
+  gap: 12px;
+}
+
+.settingsCopy p,
+.settingsSection h3 {
+  margin: 0;
+}
+
+.settingsCopy code {
+  color: #9be7c7;
+}
+
+.settingsSection h3 {
+  font-size: 14px;
+  color: #f4f0e8;
+}
+
+.settingsActions {
+  padding: 12px;
+  border: 1px solid rgba(244, 240, 232, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.settingsActions span {
+  color: #b8b0a3;
+  font-size: 12px;
+}
+
+.outputPanel {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.outputHeader,
+.outputActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.outputHeader span {
+  color: #9a9489;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.outputActions button {
+  border: 1px solid rgba(155, 231, 199, 0.42);
+  border-radius: 6px;
+  background: rgba(155, 231, 199, 0.08);
+  color: #9be7c7;
+  cursor: pointer;
+  padding: 7px 10px;
+}
+
+.copyStatus {
+  color: #b8b0a3;
+  font-size: 12px;
+  font-style: normal;
 }
 
 .output {
   min-height: 240px;
-  margin-top: 16px;
   overflow: auto;
   white-space: pre-wrap;
+  user-select: text;
   border: 1px solid rgba(244, 240, 232, 0.12);
   background: #0c0d0f;
   color: #b9f8d3;

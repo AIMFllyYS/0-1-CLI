@@ -1,22 +1,29 @@
 import * as readline from 'readline';
 import chalk from 'chalk';
-import { ChatMessage, ModelInfo } from '../types';
-import { MODELS, DEFAULT_MODEL_ID, getAvailableModels, getModelById } from './models';
-import { streamChat } from './provider';
+import { ChatMessage, ModelInfo, ToolCall } from '../types';
+import { MODELS, DEFAULT_MODEL_ID, getSelectableModels, getModelById, isConfiguredModelId } from './models';
+import { chatCompleteMessage, streamChat } from './provider';
 import { webSearch } from './search';
 import { executeTool, getSystemPrompt, isToolCommand } from './tools';
 import { Spinner, printSuccess, printError, printInfo, printWarning, printDivider, StreamRenderer } from './renderer';
 import { interactiveSelect } from '../utils/selector';
-import { parseAiEnv, resolveEnvPath, writeAiSettings } from './config';
-import { parseSlashCommand, resolveModelCommand } from './commands';
-import { createInterruptController, createPendingInputController } from './interrupts';
-import { resolveModeCommand } from './modes';
-import { AiSessionState, createSessionState, setCurrentModel, setMode } from './session';
+import { parseAiEnv, resolveEnvPath, writeAiSettings, maskApiKey, updateActiveModelId } from './config';
+import { formatSlashMenu, parseSlashCommand, resolveModelCommand, formatModelInfo } from './commands';
+import { createInterruptController, createPendingInputController, formatInterruptedMessage, DEFAULT_EXIT_CONFIRM_WINDOW_MS } from './interrupts';
+import { isGlobalInterruptKey } from './keybindings';
+import { getNextMode, preparePlanModeSession, resolveModeCommandAction, resolvePlanApprovalOutcome } from './modes';
+import { AiSessionState, createSessionState, formatCurrentPlan, loadCurrentPlanFromWorkspace, recordCurrentPlan, setCurrentModel, setMode } from './session';
 import { ActiveRuntimeSkill, discoverRuntimeSkills, formatSkillContextMessage, formatSkillList, loadRuntimeSkillContent, resolveSkillSelection, RuntimeSkill, trimMessagesPreservingSkillContext, upsertSkillContextMessage } from './skills';
-import { createSubagentQueue, enqueueSubagent, cancelSubagent, formatSubagentList, resolveAgentCommand, runNextSubagent, setSubagentParentPermission } from './agent/subagents';
-import { SubagentQueue } from './agent/types';
-import { renderStatusHeader, renderTimelineEntry } from './ui/layout';
-import { formatPermissionDecision } from './permissions/prompts';
+import { createSubagentQueue, enqueueSubagent, cancelSubagent, formatSubagentList, resolveAgentCommand, runSubagentScheduler, setSubagentParentPermission, buildSubagentTimelineInput } from './agent/subagents';
+import { SubagentQueue, SubagentTask } from './agent/types';
+import { RunAgentTurnResult, runAgentTurn } from './agent/loop';
+import { resolveAgentDefinition } from './agent/definitions';
+import { createAiSubagentHandler } from './agent/runner';
+import { renderPermissionBox, renderPlanApprovalPanel, renderStatusHeader, renderSubagentTimelineEntry, renderTimelineEntry } from './ui/layout';
+import { SessionPermissionMemory } from './permissions/engine';
+import { applyPermissionPromptChoice, formatPermissionDecision, formatPermissionPromptOptions, parsePermissionPromptChoice } from './permissions/prompts';
+import { buildProviderToolSpecs } from './tools/registry';
+import { promptWithSlashTypeahead } from './typeahead';
 
 const AI_SESSION_EXIT = '__HI_AI_SESSION_EXIT__';
 
@@ -28,33 +35,65 @@ export interface StartChatOptions {
 export async function startChat(options?: string | StartChatOptions): Promise<void> {
   const startOptions = typeof options === 'string' ? { modelId: options } : (options || {});
   const session = createSessionState({ modelId: startOptions.modelId || DEFAULT_MODEL_ID, autoAccept: startOptions.autoAccept });
+  loadCurrentPlanFromWorkspace(session, process.cwd());
   session.subagents = createSubagentQueue({ parentPermissionMode: session.permissionMode });
   let currentModel = getModelById(session.currentModelId) || MODELS[0];
   const runtimeSkills = discoverRuntimeSkills();
   const activeSkills = (): ActiveRuntimeSkill[] => runtimeSkills
     .filter((skill) => session.activeSkillIds.includes(skill.id))
     .map((skill) => loadRuntimeSkillContent(skill));
+  const buildSessionPrompt = (): string => getSystemPrompt({
+    mode: session.mode,
+    permissionMode: session.permissionMode,
+    modelId: session.currentModelId,
+    activeSkillNames: activeSkills().map((skill) => skill.name),
+  });
   const syncSkillContext = (): void => upsertSkillContextMessage(messages, formatSkillContextMessage(activeSkills()));
-  const messages: ChatMessage[] = [{ role: 'system', content: getSystemPrompt() }];
+  const messages: ChatMessage[] = [{ role: 'system', content: buildSessionPrompt() }];
+  const permissionSession: SessionPermissionMemory = {};
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const pendingInput = createPendingInputController();
-  const ask = (): Promise<string> => pendingInput.wait((resolve) => rl.question(chalk.cyan('\n  ❯ '), resolve));
+  const ask = (): Promise<string> => pendingInput.wait((resolve) => {
+    const promptAbort = new AbortController();
+    activePromptAbort = promptAbort;
+    promptWithSlashTypeahead({
+      prompt: chalk.cyan('\n  ❯ '),
+      mode: session.mode,
+      signal: promptAbort.signal,
+      onOverlayChange: (active) => {
+        session.inSubmenu = active;
+      },
+    }).then((value) => {
+      if (activePromptAbort === promptAbort) activePromptAbort = null;
+      resolve(value);
+    });
+  });
   const askPrompt = async (prompt: string): Promise<string> => {
     const answer = await pendingInput.wait((resolve) => rl.question(prompt, resolve));
     if (shouldExit) throw new Error(AI_SESSION_EXIT);
     return answer;
   };
-  const interruptController = createInterruptController({ confirmWindowMs: 1200 });
+  const interruptController = createInterruptController({ confirmWindowMs: DEFAULT_EXIT_CONFIRM_WINDOW_MS });
   let foregroundBusy = false;
   let shouldExit = false;
   let activeCancel: (() => void) | null = null;
+  let activePromptAbort: AbortController | null = null;
   let subagentCancel: (() => void) | null = null;
   let subagentWorkerActive = false;
+  let queuedInput: string | null = null;
   const hasActiveWork = (): boolean => foregroundBusy || Boolean(subagentCancel);
+  const cycleMode = () => {
+    setMode(session, getNextMode(session));
+    setSubagentParentPermission(session.subagents!, session.permissionMode);
+    messages[0] = { role: 'system', content: buildSessionPrompt() };
+    syncSkillContext();
+    printSuccess(`已切换到 ${session.mode} 模式`);
+  };
   const handleInterrupt = (source: 'Ctrl+C' | 'Esc') => {
     const result = interruptController.handle({ running: hasActiveWork(), inSubmenu: session.inSubmenu });
     if (result.action === 'back') {
+      session.inSubmenu = false;
       return;
     }
     if (result.action === 'cancel-running') {
@@ -68,11 +107,13 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
       } else {
         foregroundBusy = false;
       }
-      printWarning('已请求取消当前操作');
+      printWarning(formatInterruptedMessage());
       return;
     }
     if (result.action === 'exit') {
       shouldExit = true;
+      activePromptAbort?.abort();
+      activePromptAbort = null;
       pendingInput.resolveOnExit();
       return;
     }
@@ -82,8 +123,12 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
     handleInterrupt('Ctrl+C');
   };
   const onKeypress = (_str: string | undefined, key: readline.Key) => {
-    if (key?.ctrl && key.name === 'c') handleInterrupt('Ctrl+C');
-    if (key?.name === 'escape') handleInterrupt('Esc');
+    if ((key?.name === 'tab' && key.shift) || (key?.name === 'm' && key.meta)) {
+      cycleMode();
+      return;
+    }
+    if (!isGlobalInterruptKey(_str, key || {})) return;
+    handleInterrupt(key?.ctrl && key.name === 'c' ? 'Ctrl+C' : 'Esc');
   };
   const wasRaw = process.stdin.isRaw;
   readline.emitKeypressEvents(process.stdin, rl);
@@ -109,6 +154,7 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
     runtimeSkills,
     syncSkillContext,
     subagents: session.subagents,
+    permissionSession,
     isSubagentWorkerActive: () => subagentWorkerActive,
     setSubagentWorkerActive: (active) => {
       subagentWorkerActive = active;
@@ -131,7 +177,9 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
 
   try {
   while (!shouldExit) {
-    const input = (await ask()).trim();
+    const rawInput = queuedInput ?? await ask();
+    queuedInput = null;
+    const input = rawInput.trim();
     if (!input) continue;
 
     // === Slash Commands ===
@@ -141,8 +189,11 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
       if (handled instanceof Object && 'model' in handled) {
         currentModel = handled.model;
         setCurrentModel(session, currentModel.id);
-        messages[0] = { role: 'system', content: getSystemPrompt() };
+        messages[0] = { role: 'system', content: buildSessionPrompt() };
         syncSkillContext();
+      }
+      if (handled instanceof Object && 'nextInput' in handled) {
+        queuedInput = handled.nextInput;
       }
       continue;
     }
@@ -175,9 +226,13 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
     messages.push({ role: 'user', content: input });
     foregroundBusy = true;
     try {
-      await streamAIResponse(messages, currentModel, (cancel) => {
-        activeCancel = cancel;
-      });
+      if (session.mode === 'agent' || session.mode === 'plan') {
+        await streamAgentResponse(messages, currentModel, session, askPrompt, permissionSession, hooks);
+      } else {
+        await streamAIResponse(messages, currentModel, (cancel) => {
+          activeCancel = cancel;
+        });
+      }
     } finally {
       activeCancel = null;
       foregroundBusy = false;
@@ -194,9 +249,9 @@ export async function startChat(options?: string | StartChatOptions): Promise<vo
 
 // === Slash Command Handler ===
 
-interface CommandResult {
-  model: ModelInfo;
-}
+type CommandResult =
+  | { model: ModelInfo }
+  | { nextInput: string };
 
 interface RuntimeHooks {
   askLine: (prompt: string) => Promise<string>;
@@ -204,6 +259,7 @@ interface RuntimeHooks {
   runtimeSkills: RuntimeSkill[];
   syncSkillContext: () => void;
   subagents: SubagentQueue;
+  permissionSession: SessionPermissionMemory;
   isSubagentWorkerActive: () => boolean;
   setSubagentWorkerActive: (active: boolean) => void;
   setSubagentActiveWork: (cancel: (() => void) | null) => void;
@@ -220,16 +276,49 @@ async function handleCommand(
   if (!parsed) return 'continue';
   const cmd = parsed.command;
   const args = parsed.args;
+  if (cmd === '/') {
+    printSlashMenu(session.mode);
+    return 'continue';
+  }
   if (cmd === '/agent' && args.trim()) {
     await handleAgentCommand(args, currentModel, session, hooks);
     return 'continue';
   }
-  const modeCommand = resolveModeCommand(cmd);
+  if (cmd === '/plan' && args.trim().toLowerCase() === 'open') {
+    loadCurrentPlanFromWorkspace(session, process.cwd());
+    console.log('');
+    console.log(chalk.bold.cyan('  Current Plan File'));
+    printDivider();
+    formatCurrentPlan(session).split('\n').forEach((line) => {
+      console.log(chalk.white('  ' + line));
+    });
+    console.log('');
+    return 'continue';
+  }
+  if (cmd === '/plan' && !args.trim() && session.mode === 'plan') {
+    console.log('');
+    console.log(chalk.bold.cyan('  Current Plan'));
+    printDivider();
+    formatCurrentPlan(session).split('\n').forEach((line) => {
+      console.log(chalk.white('  ' + line));
+    });
+    console.log('');
+    return 'continue';
+  }
+  const modeCommand = resolveModeCommandAction(cmd, args);
   if (modeCommand) {
     setMode(session, modeCommand.mode);
+    if (modeCommand.mode === 'plan') {
+      preparePlanModeSession(session, process.cwd());
+    }
     setSubagentParentPermission(hooks.subagents, session.permissionMode);
+    messages[0] = { role: 'system', content: getSystemPrompt({
+      mode: session.mode,
+      permissionMode: session.permissionMode,
+      modelId: session.currentModelId,
+    }) };
     printSuccess(`已切换到 ${session.mode} 模式`);
-    return 'continue';
+    return modeCommand.nextInput ? { nextInput: modeCommand.nextInput } : 'continue';
   }
 
   switch (cmd) {
@@ -242,6 +331,7 @@ async function handleCommand(
     case '/help':
     case '/h':
       printHelp();
+      printSlashMenu(session.mode);
       return 'continue';
 
     case '/model':
@@ -254,11 +344,11 @@ async function handleCommand(
         }
         if (modelCommand.kind === 'select') {
           const selected = getModelById(modelCommand.modelId);
-          if (!selected) {
+          if (!selected || !isConfiguredModelId(modelCommand.modelId)) {
             printWarning('未知模型: ' + modelCommand.modelId);
             return 'continue';
           }
-          if (selected.provider === 'custom') process.env.AI_MODEL = selected.id;
+          persistActiveModel(selected.id);
           printSuccess(`已切换到 ${selected.name}`);
           return { model: selected };
         }
@@ -317,6 +407,16 @@ function printRuntimeSkills(skills: RuntimeSkill[], activeSkillIds: string[]): v
   console.log('');
 }
 
+function printSlashMenu(mode: AiSessionState['mode']): void {
+  console.log('');
+  console.log(chalk.bold.cyan('  Slash commands'));
+  printDivider();
+  formatSlashMenu(mode).split('\n').forEach((line) => {
+    console.log(chalk.white('  ' + line));
+  });
+  console.log('');
+}
+
 function handleSkillCommand(
   args: string,
   skills: RuntimeSkill[],
@@ -372,11 +472,7 @@ async function handleAgentCommand(
     }
     try {
       const cancelled = cancelSubagent(hooks.subagents, command.id);
-      if (cancelled.status === 'cancelled') {
-        console.log(renderTimelineEntry({ kind: 'subagent', status: 'cancelled', label: cancelled.id, detail: cancelled.prompt }));
-      } else {
-        console.log(renderTimelineEntry({ kind: 'subagent', status: cancelled.status, label: cancelled.id, detail: cancelled.prompt }));
-      }
+      console.log(renderSubagentTimelineEntry(buildSubagentTimelineInput(cancelled)));
     } catch (error: any) {
       printWarning(error.message);
     }
@@ -388,18 +484,25 @@ async function handleAgentCommand(
       printWarning('用法: /agent spawn <任务>');
       return;
     }
+    const agentDefinition = resolveAgentDefinition(process.cwd(), 'general-purpose');
     const task = enqueueSubagent(hooks.subagents, {
       prompt: command.prompt,
       mode: session.mode === 'plan' ? 'plan' : 'agent',
       permissionMode: session.permissionMode,
-      skillIds: session.activeSkillIds,
+      allowedTools: agentDefinition.tools,
+      disallowedTools: agentDefinition.disallowedTools,
+      skillIds: [...new Set([...session.activeSkillIds, ...(agentDefinition.skills || [])])],
       modelId: currentModel.id,
+      currentPlan: session.currentPlan,
+      currentPlanPath: session.currentPlanPath,
+      agentType: agentDefinition.agentType,
+      agentSystemPrompt: agentDefinition.systemPrompt,
     });
     console.log(formatPermissionDecision({
       decision: task.permissionMode === 'ask' ? 'ask' : 'allow',
       reason: `subagent runs in ${task.permissionMode} permission mode`,
     }, 'subagent'));
-    console.log(renderTimelineEntry({ kind: 'subagent', status: 'queued', label: task.id, detail: task.prompt }));
+    console.log(renderSubagentTimelineEntry(buildSubagentTimelineInput(task)));
     runSubagentQueueInBackground(hooks);
     return;
   }
@@ -418,25 +521,33 @@ function runSubagentQueueInBackground(hooks: RuntimeHooks): void {
   if (hooks.isSubagentWorkerActive()) return;
   hooks.setSubagentWorkerActive(true);
 
-  const loop = async (): Promise<void> => {
-    try {
-      while (hooks.subagents.items.some((item) => item.status === 'queued')) {
-        const next = hooks.subagents.items.find((item) => item.status === 'queued');
-        if (!next) break;
-        hooks.setSubagentActiveWork(() => {
+  const handler = createAiSubagentHandler({
+    workspaceRoot: process.cwd(),
+    session: hooks.permissionSession,
+  });
+  const wrappedHandler = async (task: SubagentTask, context?: { signal?: AbortSignal }) => {
+    console.log(renderSubagentTimelineEntry(buildSubagentTimelineInput({ ...task, status: 'running' })));
+    hooks.setSubagentActiveWork(() => {
+      hooks.subagents.items
+        .filter((item) => item.status === 'running')
+        .forEach((item) => {
           try {
-            cancelSubagent(hooks.subagents, next.id);
+            cancelSubagent(hooks.subagents, item.id);
           } catch {
             // The task may have completed between keypress and cancellation.
           }
         });
-        const completed = await runNextSubagent(hooks.subagents);
-        console.log(renderTimelineEntry({
-          kind: 'subagent',
-          status: completed.status,
-          label: completed.id,
-          detail: completed.result?.summary || completed.error || completed.prompt,
-        }));
+    });
+    return handler(task, context);
+  };
+
+  const loop = async (): Promise<void> => {
+    try {
+      while (hooks.subagents.items.some((item) => item.status === 'queued')) {
+        const completedTasks = await runSubagentScheduler(hooks.subagents, wrappedHandler);
+        completedTasks.forEach((completed) => {
+          console.log(renderSubagentTimelineEntry(buildSubagentTimelineInput(completed)));
+        });
       }
     } finally {
       hooks.setSubagentActiveWork(null);
@@ -453,7 +564,8 @@ async function configureAiSettings(askLine: (prompt: string) => Promise<string>)
   console.log(chalk.bold.cyan('  AI 设置'));
   printDivider();
   const baseUrl = (await askLine(chalk.cyan(`  URL [${current.baseUrl || 'https://api.example.com/v1'}]: `))).trim() || current.baseUrl;
-  const apiKey = (await askLine(chalk.cyan(`  API Key [${current.apiKey ? '已配置' : '空'}]: `))).trim() || current.apiKey;
+  const apiKeyHint = current.apiKey ? maskApiKey(current.apiKey) : '空';
+  const apiKey = (await askLine(chalk.cyan(`  API Key [${apiKeyHint}]: `))).trim() || current.apiKey;
   const modelInput = (await askLine(chalk.cyan(`  Model ID（英文逗号分隔） [${current.modelIds.join(',') || 'model-id'}]: `))).trim();
   const modelIds = (modelInput || current.modelIds.join(','))
     .split(',')
@@ -472,6 +584,18 @@ async function configureAiSettings(askLine: (prompt: string) => Promise<string>)
   process.env.AI_MODELS = modelIds.join(',');
   process.env.AI_MODEL = activeModelId;
   printSuccess(`AI 设置已保存，当前模型 ${activeModelId}`);
+  console.log(chalk.gray(`  URL: ${baseUrl}`));
+  console.log(chalk.gray(`  API Key: ${maskApiKey(apiKey)}`));
+  console.log(chalk.gray(`  Models: ${modelIds.join(', ')}`));
+}
+
+function persistActiveModel(modelId: string): void {
+  const settings = parseAiEnv(process.env);
+  process.env.AI_MODEL = modelId;
+  if (settings.modelIds.length === 0) return;
+  if (!settings.modelIds.includes(modelId)) return;
+  const next = updateActiveModelId(resolveEnvPath(), settings, modelId);
+  process.env.AI_MODEL = next.activeModelId;
 }
 
 function printHelp(): void {
@@ -513,7 +637,7 @@ async function switchModel(current: ModelInfo, session?: AiSessionState): Promis
   console.log(chalk.bold.cyan('  🔄 选择模型'));
   printDivider();
 
-  const availableModels = getAvailableModels();
+  const availableModels = getSelectableModels();
   const options = availableModels.map(m => ({
     label: `${m.name}${m.id === current.id ? chalk.green(' (当前)') : ''}`,
     value: m.id,
@@ -537,9 +661,7 @@ async function switchModel(current: ModelInfo, session?: AiSessionState): Promis
   }
 
   if (selected) {
-    if ((selected as ModelInfo).provider === 'custom') {
-      process.env.AI_MODEL = (selected as ModelInfo).id;
-    }
+    persistActiveModel((selected as ModelInfo).id);
     printSuccess(`已切换到 ${(selected as ModelInfo).name}`);
     return { model: selected };
   }
@@ -550,10 +672,14 @@ function printModelInfo(model: ModelInfo): void {
   console.log('');
   console.log(chalk.bold.cyan('  📊 当前模型'));
   printDivider();
-  console.log(chalk.white('  名称: ') + chalk.bold(model.name));
-  console.log(chalk.white('  ID:   ') + chalk.gray(model.id));
-  console.log(chalk.white('  厂商: ') + chalk.yellow(model.provider === 'deepseek' ? 'DeepSeek' : '智谱 GLM'));
-  console.log(chalk.white('  搜索: ') + (model.supportsSearch ? chalk.green('支持') : chalk.gray('不支持')));
+  formatModelInfo(model).split('\n').forEach((line) => {
+    const [label, ...rest] = line.split(': ');
+    if (!rest.length) {
+      console.log(chalk.white('  ' + line));
+      return;
+    }
+    console.log(chalk.white('  ' + label + ': ') + chalk.bold(rest.join(': ')));
+  });
   console.log('');
 }
 
@@ -611,7 +737,7 @@ async function streamAIResponse(
   messages: ChatMessage[],
   model: ModelInfo,
   onCancelReady?: (cancel: () => void) => void
-): Promise<void> {
+): Promise<string | null> {
   const spinner = new Spinner('AI 思考中');
   spinner.start();
 
@@ -654,10 +780,240 @@ async function streamAIResponse(
     messages.push({ role: 'assistant', content: response });
 
     trimMessagesPreservingSkillContext(messages, 20);
+    return response;
   } catch (e: any) {
     spinner.stop();
     printError('API 错误: ' + e.message);
     messages.pop(); // remove failed user message
+    return null;
+  }
+}
+
+function parseTaskToolArguments(toolCall: ToolCall): { description: string; prompt: string; subagentType: string } {
+  try {
+    const parsed = JSON.parse(toolCall.function.arguments || '{}');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { description: '', prompt: '', subagentType: 'general-purpose' };
+    }
+    const args = parsed as Record<string, unknown>;
+    return {
+      description: typeof args.description === 'string' ? args.description.trim() : '',
+      prompt: typeof args.prompt === 'string' ? args.prompt.trim() : '',
+      subagentType: typeof args.subagent_type === 'string' && args.subagent_type.trim()
+        ? args.subagent_type.trim()
+        : 'general-purpose',
+    };
+  } catch {
+    return { description: '', prompt: '', subagentType: 'general-purpose' };
+  }
+}
+
+function handleAgentTaskToolCall(
+  toolCall: ToolCall,
+  model: ModelInfo,
+  session: AiSessionState,
+  hooks: RuntimeHooks
+): ChatMessage {
+  const args = parseTaskToolArguments(toolCall);
+  if (!args.prompt) {
+    return {
+      role: 'tool',
+      tool_call_id: toolCall.id,
+      content: 'Error: task prompt is required.',
+    };
+  }
+
+  const agentDefinition = resolveAgentDefinition(process.cwd(), args.subagentType);
+  const permissionMode = agentDefinition.permissionMode || session.permissionMode;
+  const task = enqueueSubagent(hooks.subagents, {
+    prompt: args.prompt,
+    mode: permissionMode === 'plan' ? 'plan' : 'agent',
+    permissionMode,
+    allowedTools: agentDefinition.tools,
+    disallowedTools: agentDefinition.disallowedTools,
+    skillIds: [...new Set([...session.activeSkillIds, ...(agentDefinition.skills || [])])],
+    modelId: agentDefinition.model && agentDefinition.model !== 'inherit' ? agentDefinition.model : model.id,
+    currentPlan: session.currentPlan,
+    currentPlanPath: session.currentPlanPath,
+    agentType: agentDefinition.agentType,
+    agentSystemPrompt: agentDefinition.systemPrompt,
+  });
+  console.log(renderSubagentTimelineEntry(buildSubagentTimelineInput(task)));
+  runSubagentQueueInBackground(hooks);
+
+  return {
+    role: 'tool',
+    tool_call_id: toolCall.id,
+    content: `Subagent ${task.id} queued: ${args.description || args.prompt}\nsubagent_type=${agentDefinition.agentType}`,
+  };
+}
+
+type PlanApprovalResult = Extract<RunAgentTurnResult, { status: 'plan_approval_required' }>;
+
+async function handlePlanApprovalResult(input: {
+  result: PlanApprovalResult;
+  messages: ChatMessage[];
+  session: AiSessionState;
+  askLine: (prompt: string) => Promise<string>;
+  hooks: RuntimeHooks;
+}): Promise<void> {
+  const { result, messages, session, askLine, hooks } = input;
+  const plan = result.plan.trim();
+  if (plan) recordCurrentPlan(session, plan, { workspaceRoot: process.cwd() });
+  console.log(renderPlanApprovalPanel({
+    plan: session.currentPlan || formatCurrentPlan(session),
+    planFilePath: session.currentPlanPath,
+    permissions: result.permissions,
+  }));
+  const answer = (await askLine(chalk.cyan('  Approve plan and enter agent mode? [y/N]: '))).trim().toLowerCase();
+  const approved = answer === 'y' || answer === 'yes';
+  const outcome = resolvePlanApprovalOutcome(approved, session);
+  if (approved) {
+    messages.push({
+      role: 'tool',
+      tool_call_id: result.pendingToolCall.id,
+      content: 'Plan approved by user. Switch to agent mode and implement the approved plan.',
+    });
+    setMode(session, outcome.mode);
+    session.permissionMode = outcome.permissionMode;
+    setSubagentParentPermission(hooks.subagents, session.permissionMode);
+    messages[0] = { role: 'system', content: getSystemPrompt({
+      mode: session.mode,
+      permissionMode: session.permissionMode,
+      modelId: session.currentModelId,
+    }) };
+    hooks.syncSkillContext();
+    printSuccess('Plan approved. Switched to agent mode.');
+    return;
+  }
+  messages.push({
+    role: 'tool',
+    tool_call_id: result.pendingToolCall.id,
+    content: 'Plan was not approved by the user. Stay in plan mode and revise the plan.',
+  });
+  setMode(session, outcome.mode);
+  session.permissionMode = outcome.permissionMode;
+  printWarning('Plan not approved. Staying in plan mode.');
+}
+
+async function streamAgentResponse(
+  messages: ChatMessage[],
+  model: ModelInfo,
+  session: AiSessionState,
+  askLine: (prompt: string) => Promise<string>,
+  permissionSession: SessionPermissionMemory,
+  hooks: RuntimeHooks
+): Promise<void> {
+  const spinner = new Spinner('Agent 思考中');
+  spinner.start();
+  const userMessage = messages[messages.length - 1];
+
+  try {
+    let result = await runAgentTurn({
+      messages,
+      workspaceRoot: process.cwd(),
+      mode: session.mode,
+      permissionMode: session.permissionMode,
+      session: permissionSession,
+      handleAgentTool: (toolCall) => handleAgentTaskToolCall(toolCall, model, session, hooks),
+      complete: (nextMessages) => chatCompleteMessage(nextMessages, model, buildProviderToolSpecs(session.mode)),
+    });
+
+    spinner.stop();
+
+    if (result.status === 'plan_approval_required') {
+      await handlePlanApprovalResult({ result, messages, session, askLine, hooks });
+      return;
+    }
+
+    while (result.status === 'permission_required') {
+      if (messages[messages.length - 1] === result.assistantMessage) {
+        messages.pop();
+      }
+      console.log(renderPermissionBox({
+        tool: result.pendingToolCall.function.name,
+        action: 'ask',
+        reason: result.permission.reason,
+      }));
+      console.log(chalk.gray(formatPermissionPromptOptions()));
+
+      let choice = parsePermissionPromptChoice('');
+      while (choice.kind === 'invalid') {
+        const answer = await askLine(chalk.cyan('  Choose 1/2/3/4/5: '));
+        choice = parsePermissionPromptChoice(answer);
+        if (choice.kind === 'invalid') printWarning('请输入 1、2、3、4 或 5。');
+      }
+      if (choice.kind === 'deny_feedback') {
+        const feedback = await askLine(chalk.cyan('  Feedback for the agent: '));
+        choice = { ...choice, feedback };
+      }
+
+      const next = await applyPermissionPromptChoice({
+        choice,
+        pending: result,
+        messages,
+        workspaceRoot: process.cwd(),
+        mode: session.mode,
+        permissionMode: session.permissionMode,
+        session: permissionSession,
+        handleAgentTool: (toolCall) => handleAgentTaskToolCall(toolCall, model, session, hooks),
+        complete: (nextMessages) => chatCompleteMessage(nextMessages, model, buildProviderToolSpecs(session.mode)),
+      });
+
+      if (next.status === 'denied') {
+        console.log(renderTimelineEntry({
+          kind: 'tool',
+          status: 'failed',
+          label: result.pendingToolCall.function.name,
+          detail: next.toolMessage.content,
+        }));
+        printWarning('Tool denied by user.');
+        return;
+      }
+      if (next.status === 'cancelled') {
+        console.log(renderTimelineEntry({
+          kind: 'tool',
+          status: 'cancelled',
+          label: result.pendingToolCall.function.name,
+          detail: next.reason,
+        }));
+        printWarning('Tool permission request cancelled.');
+        return;
+      }
+      result = next;
+    }
+
+    if (result.status === 'plan_approval_required') {
+      await handlePlanApprovalResult({ result, messages, session, askLine, hooks });
+      return;
+    }
+
+    if (session.mode === 'plan' && result.finalMessage.content) {
+      recordCurrentPlan(session, result.finalMessage.content, { workspaceRoot: process.cwd() });
+    }
+
+    result.toolResults.forEach((toolResult) => {
+      console.log(renderTimelineEntry({
+        kind: 'tool',
+        status: toolResult.message.content.startsWith('Error:') ? 'failed' : 'completed',
+        label: toolResult.toolCall.function.name,
+        detail: toolResult.message.content,
+      }));
+    });
+
+    if (result.finalMessage.content) {
+      const renderer = new StreamRenderer();
+      renderer.push(result.finalMessage.content);
+      renderer.finish();
+      printDivider();
+    }
+
+    trimMessagesPreservingSkillContext(messages, 20);
+  } catch (e: any) {
+    spinner.stop();
+    printError('Agent 错误: ' + e.message);
+    const index = messages.lastIndexOf(userMessage);
+    if (index >= 0) messages.splice(index, messages.length - index);
   }
 }
 

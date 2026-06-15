@@ -1,11 +1,13 @@
-import chalk from 'chalk';
+import {
+  divider,
+  INDENT,
+  renderCodeBlockBottom,
+  renderCodeBlockLine,
+  renderCodeBlockTop,
+  renderQuoteLine,
+  ui,
+} from './ui/theme';
 
-// === Terminal Markdown Renderer ===
-
-/**
- * Render markdown text to terminal with colors.
- * Handles: headers, bold, italic, inline code, code blocks, lists, links, blockquotes, tables, hr.
- */
 export function renderMarkdown(text: string): string {
   const lines = text.split('\n');
   const out: string[] = [];
@@ -13,104 +15,80 @@ export function renderMarkdown(text: string): string {
   let codeLang = '';
 
   for (const line of lines) {
-    // Code block toggle
     if (line.trimStart().startsWith('```')) {
       if (!inCodeBlock) {
         inCodeBlock = true;
         codeLang = line.trimStart().slice(3).trim();
-        const label = codeLang ? chalk.gray(` ${codeLang} `) : '';
-        out.push(chalk.gray('  ┌──') + label + chalk.gray('─'.repeat(Math.max(0, 50 - (codeLang.length + 4)))));
+        out.push(renderCodeBlockTop(codeLang));
       } else {
         inCodeBlock = false;
         codeLang = '';
-        out.push(chalk.gray('  └' + '─'.repeat(52)));
+        out.push(renderCodeBlockBottom());
       }
       continue;
     }
 
     if (inCodeBlock) {
-      out.push(chalk.gray('  │ ') + chalk.green(line));
+      out.push(renderCodeBlockLine(line));
       continue;
     }
 
-    // Horizontal rule
     if (/^---+$/.test(line.trim()) || /^\*\*\*+$/.test(line.trim())) {
-      out.push(chalk.gray('  ' + '─'.repeat(56)));
+      out.push(`${INDENT}${divider(56)}`);
       continue;
     }
 
-    // Headers
     const h3 = line.match(/^### (.+)/);
-    if (h3) { out.push(chalk.bold.yellow('   ' + h3[1])); continue; }
+    if (h3) { out.push(ui.h3(`   ${h3[1]}`)); continue; }
     const h2 = line.match(/^## (.+)/);
-    if (h2) { out.push(chalk.bold.magenta('  ' + h2[1])); continue; }
+    if (h2) { out.push(ui.h2(`  ${h2[1]}`)); continue; }
     const h1 = line.match(/^# (.+)/);
-    if (h1) { out.push(chalk.bold.cyan(' ' + h1[1])); continue; }
+    if (h1) { out.push(ui.h1(` ${h1[1]}`)); continue; }
 
-    // Blockquote
     if (line.trimStart().startsWith('> ')) {
-      out.push(chalk.gray('  │ ') + chalk.italic(renderInline(line.trimStart().slice(2))));
+      out.push(renderQuoteLine(renderInline(line.trimStart().slice(2))));
       continue;
     }
 
-    // Table row (simple: | col | col |)
     if (/^\|(.+)\|$/.test(line.trim())) {
-      // Table separator row
       if (/^\|[\s\-:|]+\|$/.test(line.trim())) {
-        out.push(chalk.gray('  ├' + '─'.repeat(56)));
+        out.push(ui.muted(`${INDENT}├${'─'.repeat(56)}`));
         continue;
       }
-      const cells = line.trim().slice(1, -1).split('|').map(c => c.trim());
-      const row = cells.map(c => chalk.white(renderInline(c))).join(chalk.gray(' │ '));
-      out.push(chalk.gray('  │ ') + row);
+      const cells = line.trim().slice(1, -1).split('|').map((cell) => cell.trim());
+      const row = cells.map((cell) => ui.strong(renderInline(cell))).join(ui.muted(' │ '));
+      out.push(ui.muted(`${INDENT}│ `) + row);
       continue;
     }
 
-    // List items
     const bullet = line.match(/^(\s*)([-*]) (.+)/);
     if (bullet) {
-      const indent = bullet[1];
-      const content = renderInline(bullet[3]);
-      out.push(indent + chalk.cyan('  • ') + content);
+      out.push(`${bullet[1]}${ui.muted(`${INDENT}• `)}${renderInline(bullet[3])}`);
       continue;
     }
 
-    // Numbered list
     const numbered = line.match(/^(\s*)(\d+)\. (.+)/);
     if (numbered) {
-      const indent = numbered[1];
-      const num = numbered[2];
-      const content = renderInline(numbered[3]);
-      out.push(indent + chalk.cyan(`  ${num}. `) + content);
+      out.push(`${numbered[1]}${ui.muted(`${INDENT}${numbered[2]}. `)}${renderInline(numbered[3])}`);
       continue;
     }
 
-    // Empty line
     if (!line.trim()) {
       out.push('');
       continue;
     }
 
-    // Regular line with inline formatting
-    out.push('  ' + renderInline(line));
+    out.push(`${INDENT}${renderInline(line)}`);
   }
 
   return out.join('\n');
 }
 
-/** Render inline markdown: bold, italic, code, links, strikethrough */
 export function renderInline(text: string): string {
   return text
-    // Bold
-    .replace(/\*\*(.+?)\*\*/g, (_, t) => chalk.bold.white(t))
-    // Italic
-    .replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, (_, t) => chalk.italic(t))
-    // Strikethrough
-    .replace(/~~(.+?)~~/g, (_, t) => chalk.strikethrough.gray(t))
-    // Inline code
-    .replace(/`([^`]+)`/g, (_, t) => chalk.bgGray.white(` ${t} `))
-    // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => chalk.blue.underline(label) + chalk.gray(` (${url})`))
-    // Emoji shortcodes pass through (already unicode)
-    ;
+    .replace(/\*\*(.+?)\*\*/g, (_, value) => ui.strong(value))
+    .replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, (_, value) => ui.italic(value))
+    .replace(/~~(.+?)~~/g, (_, value) => ui.strike(value))
+    .replace(/`([^`]+)`/g, (_, value) => ui.inlineCode(value))
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => `${ui.link(label)}${ui.muted(` (${url})`)}`);
 }

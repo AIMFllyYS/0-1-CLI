@@ -26,3 +26,12 @@ execSync('npm install --omit=dev --ignore-scripts', {
   cwd: target,
   stdio: 'inherit',
 });
+
+const runtimeIndex = path.join(target, 'index.js');
+const runtimeChalk = path.join(target, 'node_modules', 'chalk');
+if (!fs.existsSync(runtimeIndex)) {
+  throw new Error('Bundled CLI runtime index.js is missing after copy.');
+}
+if (!fs.existsSync(runtimeChalk)) {
+  throw new Error('Bundled CLI runtime dependencies are missing after npm install.');
+}

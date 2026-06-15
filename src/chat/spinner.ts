@@ -1,8 +1,8 @@
-import chalk from 'chalk';
+import { ui } from './ui/theme';
+import { getGlyphMode } from './terminal-ui';
 
-// === Spinner Animation ===
-
-const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const UNICODE_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const ASCII_FRAMES = ['|', '/', '-', '\\'];
 
 export class Spinner {
   private interval: NodeJS.Timeout | null = null;
@@ -13,22 +13,25 @@ export class Spinner {
     this.text = text;
   }
 
+  static getFrames(): string[] {
+    return getGlyphMode() === 'ascii' ? [...ASCII_FRAMES] : [...UNICODE_FRAMES];
+  }
+
   start(): void {
     this.frame = 0;
     process.stdout.write('\n');
     this.interval = setInterval(() => {
-      const f = SPINNER_FRAMES[this.frame % SPINNER_FRAMES.length];
-      process.stdout.write(`\r${chalk.cyan(f)} ${chalk.gray(this.text + '...')}`);
+      const frames = Spinner.getFrames();
+      const glyph = frames[this.frame % frames.length];
+      process.stdout.write(`\r${ui.brand(glyph)} ${ui.muted(`${this.text}...`)}`);
       this.frame++;
     }, 160);
   }
 
-  /** Update spinner text while running */
   setText(text: string): void {
     this.text = text;
   }
 
-  /** Check if spinner is currently running */
   isRunning(): boolean {
     return this.interval !== null;
   }
@@ -37,7 +40,13 @@ export class Spinner {
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = null;
-      process.stdout.write('\r\x1B[K'); // clear line
+      process.stdout.write('\r\x1B[K');
     }
   }
+}
+
+export function renderSpinnerLine(text: string, frame = 0): string {
+  const frames = Spinner.getFrames();
+  const glyph = frames[frame % frames.length];
+  return `${ui.brand(glyph)} ${ui.muted(text)}`;
 }

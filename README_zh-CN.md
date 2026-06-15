@@ -172,12 +172,12 @@ hi --clear-a
 > - 🧹 C 盘：保守 / 激进 双模式
 
 > **AI 对话特性**
-> - 🔒 只读模式 - 无法编辑/创建/删除文件
-> - 🛠️ 可用工具：`ls`、`dir`、`Read`、`Grep`、`WebSearch`
-> - 🔍 内置网络搜索 + AI 自动总结
-> - 🧠 多模型支持：DeepSeek V4、GLM-4.7/4.5/5
-> - 💬 多轮对话
-> - 🌐 使用 DeepSeek / 智谱 API
+> - 💬 `/chat` 只读模式：可读文件、搜索、解释代码
+> - 🤖 `/agent` 代理模式：可写文件、运行 shell（需权限确认；`--auto-accept` 为本地开发跳过）
+> - 📋 `/plan` 计划模式：起草方案并经用户批准后再切换到 agent
+> - 🛠️ 本地工具：读/写文件、shell、子 agent、skills 搜索
+> - 🧠 多模型支持：DeepSeek、GLM 及自定义 OpenAI 兼容 Provider
+> - 🔒 API Key 在展示路径中一律脱敏
 
 ## 📋 支持的 AI CLI 工具
 

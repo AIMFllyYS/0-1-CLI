@@ -8,7 +8,9 @@ test('env example documents custom AI provider settings', () => {
 
   assert.match(env, /AI_BASE_URL=/);
   assert.match(env, /AI_API_KEY=/);
+  assert.match(env, /AI_MODELS=/);
   assert.match(env, /AI_MODEL=/);
+  assert.match(env, /English commas|英文逗号/);
 });
 
 test('provider prefers custom env URL, key, and model', () => {

@@ -14,7 +14,7 @@
 | `hi --skills` | 打开 skills 市场，安装 Superpowers 或 agent-onboarding-skill |
 | `hi --api` | 选择 GLM、Kimi、DeepSeek、OpenAI、Claude 等 API 平台并跳转 |
 | `hi --pay` | 查看 Supay、代充平台和 API 中转平台入口 |
-| `hi --chat` | 进入内置 AI 对话模式 |
+| `hi --ai` / `hi --chat` | 进入内置 AI 对话模式（支持 `/chat`、`/agent`、`/plan` 模式） |
 | `hi --clear` | 清理后台进程或 C 盘空间，执行前会让你确认 |
 
 ## 一键安装最新版

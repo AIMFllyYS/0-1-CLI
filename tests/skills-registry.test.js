@@ -19,3 +19,15 @@ test('skills targets include cli and global destinations', () => {
     assert.ok(keys.includes(key), `missing ${key}`);
   }
 });
+
+test('slash command registry exposes runtime skills search', () => {
+  execFileSync('cmd.exe', ['/c', 'npm run build --silent'], { stdio: 'pipe' });
+  const { getSlashCommandDefinitions, resolveSkillsCommand } = require('../dist/chat/commands');
+
+  const searchCommand = getSlashCommandDefinitions('agent').find((item) => item.id === 'skills-search');
+  assert.ok(searchCommand);
+  assert.match(searchCommand.command, /\/skills search/);
+
+  assert.deepEqual(resolveSkillsCommand('search pdf'), { kind: 'search', query: 'pdf' });
+  assert.deepEqual(resolveSkillsCommand(''), { kind: 'list' });
+});

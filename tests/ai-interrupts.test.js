@@ -51,3 +51,19 @@ test('pending input controller resolves future prompts after exit starts', async
 
   assert.equal(answer, '');
 });
+
+test('exit confirmation expires after the confirm window', () => {
+  const { createInterruptController } = require('../dist/chat/interrupts');
+  const controller = createInterruptController({ confirmWindowMs: 1000 });
+
+  assert.deepEqual(controller.handle({ running: false, now: 1000 }), { action: 'confirm-exit' });
+  assert.deepEqual(controller.handle({ running: false, now: 2500 }), { action: 'confirm-exit' });
+});
+
+test('formatInterruptedMessage renders provider-neutral interrupted copy', () => {
+  const { formatInterruptedMessage } = require('../dist/chat/interrupts');
+
+  assert.match(formatInterruptedMessage(), /Interrupted/);
+  assert.match(formatInterruptedMessage(), /接下来/);
+  assert.doesNotMatch(formatInterruptedMessage(), /Anthropic|\/issue|oauth|telemetry/i);
+});

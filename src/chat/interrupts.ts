@@ -1,5 +1,7 @@
 export type InterruptAction = 'cancel-running' | 'confirm-exit' | 'exit' | 'back';
 
+export const DEFAULT_EXIT_CONFIRM_WINDOW_MS = 1200;
+
 export interface InterruptInput {
   running: boolean;
   inSubmenu?: boolean;
@@ -17,6 +19,10 @@ export interface InterruptController {
 export interface PendingInputController {
   wait(register: (resolve: (value: string) => void) => void): Promise<string>;
   resolveOnExit(): void;
+}
+
+export function formatInterruptedMessage(): string {
+  return 'Interrupted · 接下来想做什么？';
 }
 
 export function createInterruptController(options: { confirmWindowMs: number }): InterruptController {
