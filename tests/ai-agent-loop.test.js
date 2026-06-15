@@ -274,6 +274,80 @@ test('agent loop executes multiple tool calls in order with one result each', as
   assert.equal(result.finalMessage.content, 'Both tools completed in order.');
 });
 
+test('agent loop emits structured turn, tool, and completion events', async () => {
+  const { runAgentTurn } = require('../dist/chat/agent/loop');
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-agent-loop-events-'));
+  fs.writeFileSync(path.join(workspaceRoot, 'note.txt'), 'event stream 中文', 'utf8');
+  const events = [];
+
+  const result = await runAgentTurn({
+    messages: [{ role: 'user', content: 'read note.txt' }],
+    workspaceRoot,
+    mode: 'agent',
+    permissionMode: 'bypass',
+    onEvent: (event) => events.push(event),
+    complete: async (nextMessages) => {
+      if (!nextMessages.some((message) => message.role === 'tool')) {
+        return {
+          role: 'assistant',
+          content: '',
+          tool_calls: [toolCall('call-events', 'read_file', { path: 'note.txt' })],
+        };
+      }
+      return { role: 'assistant', content: 'Read complete.' };
+    },
+  });
+
+  assert.equal(result.status, 'completed');
+  assert.deepEqual(events.map((event) => event.type), [
+    'turn_start',
+    'assistant_message',
+    'tool_start',
+    'tool_result',
+    'turn_start',
+    'assistant_message',
+    'turn_complete',
+  ]);
+  assert.deepEqual(events.find((event) => event.type === 'tool_start'), {
+    type: 'tool_start',
+    round: 1,
+    toolCallId: 'call-events',
+    toolName: 'read_file',
+  });
+  assert.equal(events.find((event) => event.type === 'tool_result').permissionDecision, 'allow');
+  assert.equal(events.at(-1).status, 'completed');
+  assert.equal(events.at(-1).toolResultCount, 1);
+});
+
+test('agent loop emits permission events before returning for approval', async () => {
+  const { runAgentTurn } = require('../dist/chat/agent/loop');
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-agent-loop-permission-events-'));
+  const events = [];
+
+  const result = await runAgentTurn({
+    messages: [{ role: 'user', content: 'write a file' }],
+    workspaceRoot,
+    mode: 'agent',
+    permissionMode: 'ask',
+    onEvent: (event) => events.push(event),
+    complete: async () => ({
+      role: 'assistant',
+      content: '',
+      tool_calls: [toolCall('call-permission-events', 'write_file', { path: 'out.txt', content: 'blocked' })],
+    }),
+  });
+
+  assert.equal(result.status, 'permission_required');
+  assert.deepEqual(events.map((event) => event.type), [
+    'turn_start',
+    'assistant_message',
+    'tool_start',
+    'permission_required',
+  ]);
+  assert.equal(events.at(-1).toolName, 'write_file');
+  assert.equal(events.at(-1).toolCallId, 'call-permission-events');
+});
+
 test('agent loop stops after max tool rounds with a clear assistant message', async () => {
   const { runAgentTurn } = require('../dist/chat/agent/loop');
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-agent-loop-max-rounds-'));

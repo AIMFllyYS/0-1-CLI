@@ -71,3 +71,16 @@ test('desktop exposes embedded ai message ipc without raw renderer shell access'
   assert.doesNotMatch(preload, /sendAiMessage[\s\S]*validateDesktopCommand/);
   assert.doesNotMatch(aiSession, /shell:\s*true/);
 });
+
+test('desktop ai session owns conversation history and maps agent events to activity', () => {
+  const aiSession = read('desktop/src/main/ai-session.ts');
+
+  assert.match(aiSession, /desktopAiSessions\s*=\s*new Map/);
+  assert.match(aiSession, /getDesktopAiSession/);
+  assert.match(aiSession, /appendDesktopUserMessage/);
+  assert.match(aiSession, /onEvent:\s*\(event\)/);
+  assert.match(aiSession, /activityFromAgentEvents/);
+  assert.match(aiSession, /session\.messages/);
+  assert.match(aiSession, /session\.activity/);
+  assert.doesNotMatch(aiSession, /const turnMessages:[\s\S]*safeMessages\(request\.messages, request\.text\)/);
+});
