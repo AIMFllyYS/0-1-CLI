@@ -12,8 +12,6 @@ function readRenderer() {
     'desktop/src/renderer/App.tsx',
     'desktop/src/renderer/codex-shell/CodexShell.tsx',
     'desktop/src/renderer/codex-shell/useConversationState.ts',
-    'desktop/src/renderer/codex-shell/useInspectorState.ts',
-    'desktop/src/renderer/codex-shell/InspectorPane.tsx',
     'desktop/src/renderer/codex-shell/ConversationView.tsx',
     'desktop/src/renderer/codex-shell/Composer.tsx',
   ].map(read).join('\n');
@@ -85,33 +83,33 @@ test('desktop clear IPC scans first and requires explicit confirmation before ki
   assert.doesNotMatch(clearActions, /readline|question\(|Remove-Item|Clear-RecycleBin/);
 });
 
-test('desktop renderer opens native install panel instead of running interactive install command', () => {
+test('desktop primary renderer omits native install panel from the ai workspace', () => {
   const renderer = readRenderer();
 
-  assert.match(renderer, /activeAction === 'install'/);
-  assert.match(renderer, /listInstallTargets/);
-  assert.match(renderer, /runInstallTarget/);
-  assert.match(renderer, /InstallPanel/);
+  assert.doesNotMatch(renderer, /activeAction === 'install'/);
+  assert.doesNotMatch(renderer, /listInstallTargets/);
+  assert.doesNotMatch(renderer, /runInstallTarget/);
+  assert.doesNotMatch(renderer, /InstallPanel/);
   assert.doesNotMatch(renderer, /runCommand\('hi --install'\)/);
 });
 
-test('desktop renderer opens native skills panel instead of running interactive skills command', () => {
+test('desktop primary renderer omits native skills panel from the ai workspace', () => {
   const renderer = readRenderer();
 
-  assert.match(renderer, /activeAction === 'skills'/);
-  assert.match(renderer, /listSkillPackages/);
-  assert.match(renderer, /installSkillPackage/);
-  assert.match(renderer, /SkillsPanel/);
+  assert.doesNotMatch(renderer, /activeAction === 'skills'/);
+  assert.doesNotMatch(renderer, /listSkillPackages/);
+  assert.doesNotMatch(renderer, /installSkillPackage/);
+  assert.doesNotMatch(renderer, /SkillsPanel/);
   assert.doesNotMatch(renderer, /runCommand\('hi --skills'\)/);
 });
 
-test('desktop renderer opens native clear panel instead of running interactive clear command', () => {
+test('desktop primary renderer omits native clear panel from the ai workspace', () => {
   const renderer = readRenderer();
 
-  assert.match(renderer, /activeAction === 'clear'/);
-  assert.match(renderer, /scanClearProcesses/);
-  assert.match(renderer, /killClearProcesses/);
-  assert.match(renderer, /ClearPanel/);
+  assert.doesNotMatch(renderer, /activeAction === 'clear'/);
+  assert.doesNotMatch(renderer, /scanClearProcesses/);
+  assert.doesNotMatch(renderer, /killClearProcesses/);
+  assert.doesNotMatch(renderer, /ClearPanel/);
   assert.doesNotMatch(renderer, /runCommand\('hi --clear'\)/);
 });
 
@@ -143,17 +141,16 @@ test('desktop cli runner times out long running commands', () => {
   assert.match(runner, /timed out/i);
 });
 
-test('desktop renderer exposes copyable command output and busy guard', () => {
+test('desktop primary renderer keeps command output panels out of the ai workspace', () => {
   const renderer = readRenderer();
   const styles = read('desktop/src/renderer/styles.css');
 
-  assert.match(renderer, /copyOutput/);
-  assert.match(renderer, /Copy output/);
-  assert.match(renderer, /commandBusy/);
-  assert.match(renderer, /outputPanel/);
-  assert.match(styles, /user-select:\s*text/);
-  assert.match(styles, /\.outputPanel/);
-  assert.match(styles, /\.outputHeader/);
+  assert.doesNotMatch(renderer, /copyOutput/);
+  assert.doesNotMatch(renderer, /Copy output/);
+  assert.doesNotMatch(renderer, /commandBusy/);
+  assert.doesNotMatch(renderer, /outputPanel/);
+  assert.doesNotMatch(styles, /\.outputPanel/);
+  assert.doesNotMatch(styles, /\.outputHeader/);
 });
 
 test('desktop preload rejects non-whitelisted runCommand requests', () => {
@@ -180,10 +177,11 @@ test('desktop ai bridge uses dedicated ipc and does not expose raw shell', () =>
 test('desktop renderer separates ai bridge from dashboard commands', () => {
   const renderer = readRenderer();
 
-  assert.match(renderer, /launchAiSession/);
+  assert.doesNotMatch(renderer, /launchAiSession/);
+  assert.match(renderer, /sendAiMessage/);
   assert.doesNotMatch(renderer, /runCommand\(['"]hi --ai['"]\)/);
   assert.doesNotMatch(renderer, /runCommand\(['"]ai['"]\)/);
-  assert.match(renderer, /outputPanel/);
+  assert.doesNotMatch(renderer, /outputPanel/);
 });
 
 test('desktop renderer mirrors cli modes and balanced shell layout', () => {
@@ -197,7 +195,8 @@ test('desktop renderer mirrors cli modes and balanced shell layout', () => {
   assert.match(styles, /\.codexShell\s*\{/);
   assert.match(styles, /\.sessionRail\s*\{/);
   assert.match(styles, /\.conversationPane\s*\{/);
-  assert.match(styles, /\.inspectorPane\s*\{/);
+  assert.doesNotMatch(styles, /\.inspectorPane\s*\{/);
+  assert.match(styles, /grid-template-columns:\s*280px minmax\(0,\s*1fr\)/);
   assert.match(styles, /\.composerBar\s*\{/);
 });
 
@@ -220,10 +219,10 @@ test('desktop vite build uses file-safe relative renderer assets', () => {
   assert.match(viteConfig, /emptyOutDir:\s*true/);
 });
 
-test('desktop settings panel explains cli setting flow', () => {
+test('desktop primary renderer keeps settings panel out of the ai workspace', () => {
   const renderer = readRenderer();
 
-  assert.match(renderer, /\/setting/);
-  assert.match(renderer, /SettingsPanel/);
-  assert.match(renderer, /launchAiSession|Open AI terminal/i);
+  assert.doesNotMatch(renderer, /\/setting/);
+  assert.doesNotMatch(renderer, /SettingsPanel/);
+  assert.doesNotMatch(renderer, /Open AI terminal/i);
 });

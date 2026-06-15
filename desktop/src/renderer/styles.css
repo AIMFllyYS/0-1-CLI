@@ -11,8 +11,8 @@
 
 body {
   margin: 0;
-  min-width: 1100px;
-  min-height: 720px;
+  min-width: 900px;
+  min-height: 680px;
   background: #0f1115;
 }
 
@@ -28,24 +28,20 @@ button {
 
 .codexShell {
   display: grid;
-  grid-template-columns: 248px minmax(520px, 1fr) 356px;
-  min-height: 100vh;
+  grid-template-columns: 280px minmax(0, 1fr);
+  height: 100vh;
+  overflow: hidden;
   background: #101216;
-}
-
-.sessionRail,
-.inspectorPane {
-  min-height: 100vh;
-  background: #15171c;
-  border-color: #262a33;
 }
 
 .sessionRail {
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   gap: 14px;
+  min-height: 0;
   padding: 16px;
   border-right: 1px solid #262a33;
+  background: #15171c;
 }
 
 .railBrand {
@@ -63,8 +59,8 @@ button {
   border-radius: 8px;
   background: #f4f4f5;
   color: #111318;
-  font-weight: 800;
   font-size: 13px;
+  font-weight: 800;
 }
 
 .railBrand strong,
@@ -83,14 +79,7 @@ button {
 .activityChip span,
 .activityChip p,
 .messageBody header span,
-.quietCopy,
-.choiceRow span,
-.choiceRow em,
-.choiceRow small,
-.confirmStrip span,
-.settingsCopy,
-.releaseStatus,
-.releaseAsset em {
+.quietCopy {
   color: #a6abb6;
 }
 
@@ -98,15 +87,7 @@ button {
 .sessionRow,
 .modeTabs button,
 .toolButton,
-.sendButton,
-.inspectorTabs button,
-.commandCard,
-.choiceRow,
-.secondaryButton,
-.panelHeader button,
-.confirmStrip button,
-.releaseAsset button,
-.settingsSection button {
+.sendButton {
   border: 1px solid #2a2f39;
   border-radius: 8px;
   background: #1a1d24;
@@ -123,6 +104,7 @@ button {
   display: grid;
   align-content: start;
   gap: 8px;
+  min-height: 0;
   overflow: auto;
 }
 
@@ -142,8 +124,7 @@ button {
   font-style: normal;
 }
 
-.selected,
-.selectedTarget {
+.selected {
   border-color: #7dd3fc !important;
   background: #152433 !important;
   color: #f8fafc !important;
@@ -162,7 +143,7 @@ button {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   min-width: 0;
-  min-height: 100vh;
+  min-height: 0;
   background: #0f1115;
 }
 
@@ -247,6 +228,7 @@ button {
 }
 
 .messageList {
+  min-height: 0;
   overflow: auto;
   padding: 26px max(28px, 7vw);
 }
@@ -255,7 +237,7 @@ button {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 12px;
-  max-width: 880px;
+  max-width: 900px;
   margin: 0 auto 22px;
 }
 
@@ -291,8 +273,8 @@ button {
 
 .markdownBody {
   color: #ececf1;
-  line-height: 1.62;
   font-size: 14px;
+  line-height: 1.62;
 }
 
 .markdownBody p {
@@ -336,7 +318,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 880px;
+  max-width: 900px;
   width: 100%;
   margin: 0 auto;
 }
@@ -355,7 +337,7 @@ button {
 .composerInputWrap {
   position: relative;
   display: grid;
-  max-width: 880px;
+  max-width: 900px;
   width: 100%;
   margin: 0 auto;
 }
@@ -387,198 +369,21 @@ button {
   color: #111318;
 }
 
-.sendButton:disabled,
-.commandCard:disabled,
-.confirmStrip button:disabled {
+.sendButton:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
 
-.inspectorPane {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) minmax(180px, 280px);
-  gap: 12px;
-  padding: 14px;
-  border-left: 1px solid #262a33;
-}
+@media (max-width: 920px) {
+  body {
+    min-width: 0;
+  }
 
-.inspectorTabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
+  .codexShell {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-.inspectorTabs button {
-  padding: 7px 9px;
-  font-size: 12px;
-}
-
-.inspectorContent,
-.outputPanel {
-  min-width: 0;
-  border: 1px solid #262a33;
-  border-radius: 8px;
-  background: #12151b;
-}
-
-.inspectorContent {
-  overflow: auto;
-  padding: 12px;
-}
-
-.commandGrid,
-.toolPanel,
-.choiceList,
-.settingsSection,
-.releaseAssets {
-  display: grid;
-  gap: 10px;
-}
-
-.commandCard,
-.choiceRow {
-  display: grid;
-  gap: 6px;
-  padding: 10px;
-  text-align: left;
-}
-
-.commandCard code,
-.choiceRow code,
-.settingsCopy code {
-  color: #93c5fd;
-}
-
-.categorySwitch {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
-}
-
-.categorySwitch button,
-.secondaryButton,
-.panelHeader button,
-.confirmStrip button,
-.settingsSection button {
-  padding: 8px 10px;
-}
-
-.panelHeader,
-.confirmStrip,
-.releaseAsset {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.panelHeader p,
-.panelHeader h2,
-.settingsCopy p,
-.settingsSection h3 {
-  margin: 0;
-}
-
-.panelHeader p {
-  color: #7dd3fc;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.panelHeader h2 {
-  font-size: 16px;
-}
-
-.targetChecklist {
-  display: grid;
-  gap: 8px;
-  max-height: 170px;
-  overflow: auto;
-  padding: 10px;
-  border: 1px solid #262a33;
-  border-radius: 8px;
-}
-
-.checkRow,
-.checkChoice {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 13px;
-}
-
-.checkChoice span {
-  display: grid;
-  gap: 3px;
-}
-
-.confirmStrip {
-  padding-top: 10px;
-  border-top: 1px solid #262a33;
-}
-
-.releaseAsset {
-  padding: 10px;
-  border: 1px solid #262a33;
-  border-radius: 8px;
-}
-
-.releaseAsset span {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.releaseAsset strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.outputPanel {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 6px;
-  padding: 10px;
-}
-
-.outputHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.outputHeader span {
-  color: #a6abb6;
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-.outputHeader button {
-  border: 1px solid #334155;
-  border-radius: 8px;
-  background: #172033;
-  color: #bfdbfe;
-  cursor: pointer;
-  padding: 7px 9px;
-}
-
-.outputPanel em {
-  color: #a6abb6;
-  font-size: 12px;
-  font-style: normal;
-}
-
-.output {
-  min-height: 0;
-  overflow: auto;
-  user-select: text;
-  white-space: pre-wrap;
-  margin: 0;
-  border: 1px solid #242832;
-  border-radius: 8px;
-  background: #0b0d11;
-  color: #c7d2fe;
-  padding: 10px;
+  .sessionRail {
+    display: none;
+  }
 }

@@ -1,6 +1,8 @@
 import React from 'react';
 import type { ConversationMessage } from './types';
 
+const VISIBLE_MESSAGE_LIMIT = 80;
+
 function renderInline(value: string): React.ReactNode[] {
   const parts = value.split(/(`[^`]+`)/g);
   return parts.map((part, index) => {
@@ -45,10 +47,12 @@ function renderMarkdown(content: string): React.ReactElement[] {
   return rendered;
 }
 
-export function MessageList(props: { messages: ConversationMessage[] }): React.ReactElement {
+function MessageListView(props: { messages: ConversationMessage[] }): React.ReactElement {
+  const visibleMessages = props.messages.slice(-VISIBLE_MESSAGE_LIMIT);
+
   return (
     <div className="messageList" aria-label="Conversation">
-      {props.messages.map((message) => (
+      {visibleMessages.map((message) => (
         <article className={`messageRow ${message.role}`} key={message.id}>
           <div className="messageAvatar">{message.role === 'assistant' ? 'AI' : message.role.slice(0, 2)}</div>
           <div className="messageBody">
@@ -63,3 +67,5 @@ export function MessageList(props: { messages: ConversationMessage[] }): React.R
     </div>
   );
 }
+
+export const MessageList = React.memo(MessageListView);

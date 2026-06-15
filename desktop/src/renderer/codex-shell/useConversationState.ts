@@ -10,19 +10,19 @@ const MODE_HINTS: Record<Mode, string> = {
 const START_SESSIONS: ConversationSession[] = [
   { id: 'local', title: 'My-CLI workspace', subtitle: 'D:/new_project/My-CLI', status: 'active' },
   { id: 'plan', title: 'Plan review', subtitle: 'approval flow', status: 'ready' },
-  { id: 'release', title: 'Desktop release', subtitle: 'assets and build', status: 'queued' },
+  { id: 'skills', title: 'Skills context', subtitle: 'runtime guidance', status: 'queued' },
 ];
 
 const START_MESSAGES: Record<string, ConversationMessage[]> = {
   local: [
-    { id: 'system-1', role: 'system', content: '0-1 CLI Desktop is now an embedded AI workspace: chat, agent, plan, skills, tools, and release controls live in one shell.', meta: 'runtime' },
+    { id: 'system-1', role: 'system', content: '0-1 CLI Desktop is now an embedded AI workspace: chat, agent, plan, skills, and tool activity live in one shell.', meta: 'runtime' },
     { id: 'assistant-1', role: 'assistant', content: 'Ask in the composer below. Responses render as rich markdown, while tool activity and plan state stay visible above the thread.', meta: 'ready' },
   ],
   plan: [
     { id: 'plan-1', role: 'assistant', content: 'Plan mode is read-only until you approve an implementation path.', meta: 'plan' },
   ],
-  release: [
-    { id: 'release-1', role: 'assistant', content: 'Release checks and downloadable assets are available in Settings.', meta: 'release' },
+  skills: [
+    { id: 'skills-1', role: 'assistant', content: 'Skills context is available to guide task-specific reasoning and agent behavior.', meta: 'skills' },
   ],
 };
 
@@ -86,7 +86,6 @@ export function useConversationState() {
       const response = await window.zeroOneCli.sendAiMessage({
         sessionId: activeSessionId,
         mode,
-        messages: [...messages, userMessage],
         text,
       });
       if (response.activity?.length) setActivity(response.activity);

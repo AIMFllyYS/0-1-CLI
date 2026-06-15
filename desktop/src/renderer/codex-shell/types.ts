@@ -78,7 +78,6 @@ export interface ReleaseInfo {
 export interface DesktopAiRequest {
   sessionId: string;
   mode: Mode;
-  messages: ConversationMessage[];
   text: string;
 }
 

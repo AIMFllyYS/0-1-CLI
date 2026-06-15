@@ -1,13 +1,10 @@
 import React from 'react';
 import { ConversationView } from './ConversationView';
-import { InspectorPane } from './InspectorPane';
 import { SessionRail } from './SessionRail';
 import { useConversationState } from './useConversationState';
-import { useInspectorState } from './useInspectorState';
 
 export function CodexShell(): React.ReactElement {
   const conversation = useConversationState();
-  const inspector = useInspectorState(conversation.mode);
 
   return (
     <main className="codexShell">
@@ -26,7 +23,6 @@ export function CodexShell(): React.ReactElement {
         onMode={conversation.setMode}
         onSend={(text) => void conversation.sendMessage(text)}
       />
-      <InspectorPane {...inspector} />
     </main>
   );
 }

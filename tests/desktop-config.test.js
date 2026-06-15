@@ -12,8 +12,6 @@ function readRenderer() {
     path.join('desktop', 'src', 'renderer', 'App.tsx'),
     path.join('desktop', 'src', 'renderer', 'codex-shell', 'CodexShell.tsx'),
     path.join('desktop', 'src', 'renderer', 'codex-shell', 'useConversationState.ts'),
-    path.join('desktop', 'src', 'renderer', 'codex-shell', 'useInspectorState.ts'),
-    path.join('desktop', 'src', 'renderer', 'codex-shell', 'InspectorPane.tsx'),
   ].map((file) => fs.readFileSync(file, 'utf8')).join('\n');
 }
 
@@ -102,7 +100,8 @@ test('desktop IPC bridge restricts renderer origin and noninteractive commands',
   assert.doesNotMatch(allowedBlock, /'skills'/);
   assert.doesNotMatch(allowedBlock, /'clear'/);
   assert.match(runner, /Command not allowed/);
-  assert.match(renderer, /desktopActions/);
+  assert.doesNotMatch(renderer, /desktopActions/);
+  assert.match(renderer, /sendAiMessage/);
   assert.match(actions, /hi --clear/);
   assert.match(actions, /hi --skills/);
   assert.match(actions, /hi --install/);
@@ -137,22 +136,22 @@ test('desktop exposes trusted GitHub release IPC without hardcoded tokens', () =
   assert.match(release, /api\.github\.com\/repos\/AIMFllyYS\/0-1-CLI\/releases\/latest/);
   assert.doesNotMatch(release, /GITHUB_PERSONAL_ACCESS_TOKEN\s*=/);
   assert.doesNotMatch(release, /ghp_[A-Za-z0-9_]+/);
-  assert.match(renderer, /getLatestRelease/);
-  assert.match(renderer, /openLatestRelease/);
-  assert.match(renderer, /openReleaseAsset/);
+  assert.doesNotMatch(renderer, /getLatestRelease/);
+  assert.doesNotMatch(renderer, /openLatestRelease/);
+  assert.doesNotMatch(renderer, /openReleaseAsset/);
   assert.doesNotMatch(renderer, /href="https:\/\/github\.com\/"/);
 });
 
-test('desktop release panel renders latest assets as safe buttons', () => {
+test('desktop primary renderer omits release asset panel from the ai workspace', () => {
   const renderer = readRenderer();
   const styles = fs.readFileSync(path.join('desktop', 'src', 'renderer', 'styles.css'), 'utf8');
 
-  assert.match(renderer, /releaseInfo/);
-  assert.match(renderer, /release\.assets/);
-  assert.match(renderer, /Download asset/);
-  assert.match(renderer, /browserDownloadUrl/);
-  assert.match(styles, /\.releaseAssets/);
-  assert.match(styles, /\.releaseAsset/);
+  assert.doesNotMatch(renderer, /releaseInfo/);
+  assert.doesNotMatch(renderer, /release\.assets/);
+  assert.doesNotMatch(renderer, /Download asset/);
+  assert.doesNotMatch(renderer, /browserDownloadUrl/);
+  assert.doesNotMatch(styles, /\.releaseAssets/);
+  assert.doesNotMatch(styles, /\.releaseAsset/);
 });
 
 test('desktop local release output is ignored by git', () => {

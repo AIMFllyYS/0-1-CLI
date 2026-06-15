@@ -13,7 +13,6 @@ contextBridge.exposeInMainWorld('zeroOneCli', {
   sendAiMessage: (request: {
     sessionId: string;
     mode: 'chat' | 'agent' | 'plan';
-    messages: Array<{ id?: string; role: 'system' | 'user' | 'assistant' | 'tool'; content: string; meta?: string }>;
     text: string;
   }) => ipcRenderer.invoke('ai:message', request),
   getLatestRelease: () => ipcRenderer.invoke('release:getLatest'),
