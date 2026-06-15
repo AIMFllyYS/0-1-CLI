@@ -20,6 +20,15 @@ test('windows installer validates repository identity before reusing current dir
   assert.doesNotMatch(ps1, /if \(Test-Path "\.\\package\.json"\) \{ return \(Get-Location\)\.Path \}/);
 });
 
+test('windows installer reuses an existing valid install directory', () => {
+  const ps1 = readFileSync('scripts/install.ps1', 'utf8');
+
+  assert.match(ps1, /if \(Test-Path \$targetDir\) \{/);
+  assert.match(ps1, /if \(Test-RepoRoot \$targetDir\) \{/);
+  assert.match(ps1, /Using existing repository/);
+  assert.match(ps1, /Set-Location \$targetDir/);
+});
+
 test('macos and linux installer exists and registers hi command', () => {
   const sh = readFileSync('scripts/install.sh', 'utf8');
 

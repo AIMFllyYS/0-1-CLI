@@ -123,6 +123,11 @@ function Prepare-Repository() {
         if ([string]::IsNullOrWhiteSpace($targetDir)) { $targetDir = $DefaultDir }
     }
     if (Test-Path $targetDir) {
+        if (Test-RepoRoot $targetDir) {
+            Write-Success "Using existing repository: $targetDir"
+            Set-Location $targetDir
+            return $targetDir
+        }
         Write-Fail "Directory already exists: $targetDir"
         Write-Host "Choose another -InstallDir or remove the directory manually."
         exit 1
