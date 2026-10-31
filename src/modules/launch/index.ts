@@ -1,6 +1,8 @@
 import chalk from 'chalk';
 import type { Command } from 'commander';
+import { interactiveSelect } from '../../utils/selector';
 import { addLaunch, findLaunch, formatLaunchList, listLaunch, removeLaunch } from './registry';
+import { launchEntry, planLaunch } from './terminal';
 
 function renderPathHelp(): string {
   return [
@@ -115,6 +117,64 @@ export function registerPathCommands(program: Command): void {
       try {
         const removed = removeLaunch(id);
         console.log(chalk.green(`✓ 已删除 ${removed.id}`));
+      } catch (error) {
+        fail(error);
+      }
+    });
+}
+
+async function pickId(): Promise<string | undefined> {
+  const entries = listLaunch();
+  if (entries.length === 0) {
+    throw new Error('还没有注册任何路径。用 `hi path add <路径> --start <命令或脚本>` 添加。');
+  }
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error(`请指定 id：hi run <id>（可用：${entries.map((item) => item.id).join(', ')}）`);
+  }
+
+  let selected: string | undefined;
+  await interactiveSelect({
+    title: '选择要启动的路径',
+    options: entries.map((item) => ({
+      label: item.id,
+      value: item.id,
+      description: `${item.name}  ${item.start ? item.start.value : item.path}`,
+    })),
+    onSelect: (value) => {
+      selected = value;
+    },
+    onCancel: () => {
+      console.log(chalk.yellow('已取消。'));
+    },
+  });
+  return selected;
+}
+
+export function registerRunCommand(program: Command): void {
+  program
+    .command('run [id]')
+    .description('在新终端中于项目目录下执行启动命令')
+    .option('--dry-run', '只打印将执行的终端命令，不打开窗口')
+    .action(async (id: string | undefined, opts: { dryRun?: boolean }) => {
+      try {
+        const targetId = id ?? await pickId();
+        if (!targetId) return;
+
+        const entries = listLaunch();
+        const entry = entries.find((item) => item.id === targetId);
+        if (!entry) {
+          const available = entries.map((item) => item.id).join(', ') || '（空）';
+          throw new Error(`未找到 id：${targetId}（可用：${available}）`);
+        }
+
+        if (opts.dryRun) {
+          console.log(JSON.stringify(planLaunch(entry), null, 2));
+          return;
+        }
+
+        const { terminal } = await launchEntry(entry);
+        const via = terminal === 'wt' ? 'Windows Terminal' : 'cmd';
+        console.log(chalk.green(`✓ 已在新窗口启动 ${entry.id}`) + chalk.gray(`  (${via}, ${entry.path})`));
       } catch (error) {
         fail(error);
       }

@@ -30,7 +30,7 @@ import { runStatePage } from './modules/state';
 import { handleGuide } from './modules/guide';
 import { handleApiGuide } from './modules/api';
 import { handlePayGuide } from './modules/pay';
-import { registerPathCommands } from './modules/launch';
+import { registerPathCommands, registerRunCommand } from './modules/launch';
 
 const program = new Command();
 const VERSION = '0.7.0';
@@ -72,6 +72,7 @@ function renderChineseHelp(): string {
     '  hi path list              列出已注册的快捷路径',
     '  hi path add <路径>         注册路径，--start 指定启动命令或脚本',
     '  hi path show|rm <id>      查看或删除注册项',
+    '  hi run [id]               在新终端中于该目录执行启动命令（省略 id 则交互选择）',
     '',
     '默认：只输入 hi 会打开新手讲解模式。',
     '',
@@ -232,5 +233,6 @@ program
   });
 
 registerPathCommands(program);
+registerRunCommand(program);
 
 program.parse(process.argv);
