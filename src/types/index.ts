@@ -51,6 +51,24 @@ export interface WebSearchResponse {
   search_result: SearchResult[];
 }
 
+// === Launch Registry Types ===
+
+export type LaunchShell = 'cmd' | 'powershell';
+
+export interface LaunchStart {
+  kind: 'command' | 'script';
+  value: string;
+}
+
+export interface LaunchEntry {
+  id: string;
+  name: string;
+  path: string;
+  start?: LaunchStart;
+  shell: LaunchShell;
+  keepOpen: boolean;
+}
+
 // === Tool Execution Types ===
 
 export interface ToolResult {

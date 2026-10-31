@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
-import { loadConfig, saveConfig, getProjectRoot } from '../utils/config';
+import { loadConfigStrict, saveConfig, getProjectRoot } from '../utils/config';
 import { renderMarkdown } from '../utils/markdown';
 
 // In-memory cache for project scanning (30s TTL)
@@ -43,7 +43,7 @@ export async function ensureProjectRoot(): Promise<string> {
     }
   }
 
-  const config = loadConfig();
+  const config = loadConfigStrict();
   config.projectRoot = root;
   saveConfig(config);
   console.log(chalk.green('\n  \u2713 \u5df2\u4fdd\u5b58 ' + root + '\n'));

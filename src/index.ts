@@ -30,6 +30,7 @@ import { runStatePage } from './modules/state';
 import { handleGuide } from './modules/guide';
 import { handleApiGuide } from './modules/api';
 import { handlePayGuide } from './modules/pay';
+import { registerPathCommands } from './modules/launch';
 
 const program = new Command();
 const VERSION = '0.7.0';
@@ -66,6 +67,11 @@ function renderChineseHelp(): string {
     '  -d, --drive               清理 C 盘硬盘空间（需配合 --clear）',
     '  -a, --all                 同时清理进程和硬盘空间（需配合 --clear）',
     '  --clear-a                 快捷方式：同时清理进程和硬盘空间',
+    '',
+    '子命令：',
+    '  hi path list              列出已注册的快捷路径',
+    '  hi path add <路径>         注册路径，--start 指定启动命令或脚本',
+    '  hi path show|rm <id>      查看或删除注册项',
     '',
     '默认：只输入 hi 会打开新手讲解模式。',
     '',
@@ -224,5 +230,7 @@ program
 
     await handleGuide(VERSION);
   });
+
+registerPathCommands(program);
 
 program.parse(process.argv);
