@@ -27,6 +27,9 @@
 | 🚀 **应用启动** - 常用应用的快速启动命令 | 常用应用的快速启动器 |
 | 🤖 **AI 对话模式** - 与 DeepSeek/智谱 GLM 的交互式 AI 对话 | 与 DeepSeek/智谱 GLM 交互式对话 |
 | 🧹 **AI 辅助清理** - 无用进程清理 + C 盘清理 | AI 辅助清理后台进程和 C 盘 |
+| 🚀 **项目启动台** - 注册目录和启动命令，一键在新终端拉起 | `hi path` / `hi run` |
+| ⚙️ **统一设置** - CLI 与桌面端共用一份配置 | `hi config` |
+| 🖥️ **桌面应用** - 对话、批准、diff、设置、启动台 | Electron 桌面端，浅色/深色主题 |
 
 ## 🚀 快速开始
 
@@ -114,6 +117,58 @@ hi --paths      # 仅项目路径
 hi --apps       # 仅应用启动命令
 hi --issues     # 仅 GitHub Issues
 ```
+
+### 项目启动台
+
+把常用项目的目录和启动方式登记一次，之后一条命令就能在新终端里拉起。
+
+```bash
+hi path add D:projectsmy-app --start "npm run dev"   # 登记（不带路径或加 -i 会逐项询问，并按目录内容预填启动方式）
+hi path list [--json]                                  # 列出已登记的项目
+hi run my-app                                          # 在新终端、项目目录下执行启动命令
+hi run                                                 # 不带 id：交互选择
+hi path rm my-app                                      # 删除登记
+```
+
+`--start` 会自动区分「命令」和「脚本」：目录里真实存在的 `.cmd` / `.bat` / `.ps1` 记为脚本，其余当作命令；可用 `--cmd` / `--script` 强制指定。优先使用 Windows Terminal，没有时自动降级到 `cmd`。目前仅支持 Windows。
+
+### 设置
+
+`hi config` 与桌面端共用同一份配置（保存在用户目录的 `.coding-cli.json`）。
+
+```bash
+hi config list                                   # 查看全部设置
+hi config set github.prefetch off                # 启动状态页时不先读取 GitHub
+hi config set startup.cliAutostart on            # 开机时在终端里打开 hi
+hi config set ai.defaultMode agent               # 新对话默认进入 agent 模式
+hi config reset                                  # 全部恢复默认
+```
+
+| 设置项 | 默认 | 说明 |
+| --- | --- | --- |
+| `ai.defaultMode` | `chat` | 新对话的默认模式：`chat` / `agent` / `plan` |
+| `ai.defaultModelId` | 空 | 默认模型，留空沿用当前模型 |
+| `ai.autoAccept` | `off` | Agent 自动接受工具权限（高危命令仍会拦截） |
+| `ai.maxToolRounds` | `8` | 单次最多连续调用工具的轮数（1 到 50） |
+| `github.prefetch` | `on` | 启动状态页时先读取 GitHub 账号和 Issues（只读） |
+| `startup.cliAutostart` | `off` | 开机时在终端里打开 hi（Windows） |
+| `startup.desktopAutostart` | `off` | 登录系统后自动打开桌面应用（仅安装版） |
+| `appearance.theme` | `system` | 桌面端主题：`system` / `light` / `dark` |
+
+### 桌面应用
+
+桌面端是一个完整的对话界面：流式回答、工具调用、文件改动 diff，以及每次改文件或执行命令前的批准卡片（`Enter` 允许一次，`Esc` 拒绝）。支持多会话并行、计划模式、浅色/深色主题，并在设置页提供上面全部选项。
+
+模型的接口地址、API Key 和模型 ID 在桌面端「设置」里填写，保存到用户目录；命令行里已有的环境变量或 `.env` 仍然优先。
+
+| 快捷键 | 作用 |
+| --- | --- |
+| `Enter` / `Shift+Enter` | 发送 / 换行 |
+| `Esc` | 停止当前回答（批准卡片上为拒绝） |
+| `Shift+Tab` | 切换模式 |
+| `Ctrl+N` | 新对话 |
+| `Ctrl+,` | 打开设置 |
+| `Ctrl+L` | 聚焦输入框 |
 
 ### AI CLI 参考
 
