@@ -7,6 +7,8 @@ const CONFIG_PATH = path.join(process.env.USERPROFILE || process.env.HOME || '.'
 export interface CliConfig {
   projectRoot?: string;
   launch?: LaunchEntry[];
+  // Validated and defaulted by src/settings; stored as-is so unknown future keys survive a round trip.
+  settings?: unknown;
 }
 
 export class ConfigParseError extends Error {

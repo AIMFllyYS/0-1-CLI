@@ -18,6 +18,8 @@ import { createSubagentQueue, enqueueSubagent, cancelSubagent, formatSubagentLis
 import { SubagentQueue, SubagentTask } from './agent/types';
 import { AgentTurnEvent, RunAgentTurnResult, runAgentTurn } from './agent/loop';
 import { resolveAgentDefinition } from './agent/definitions';
+import { loadSettings } from '../settings/store';
+import { resolveStartOptions } from '../settings/runtime';
 import { createAiSubagentHandler } from './agent/runner';
 import { renderAgentProgressEvent, renderPermissionBox, renderPlanApprovalPanel, renderStatusHeader, renderSubagentTimelineEntry, renderThinkingState, renderTimelineEntry } from './ui/layout';
 import { SessionPermissionMemory } from './permissions/engine';
@@ -32,9 +34,18 @@ export interface StartChatOptions {
   autoAccept?: boolean;
 }
 
+// Set per chat start from saved settings; undefined keeps the agent loop's own default.
+let configuredMaxToolRounds: number | undefined;
+
 export async function startChat(options?: string | StartChatOptions): Promise<void> {
   const startOptions = typeof options === 'string' ? { modelId: options } : (options || {});
-  const session = createSessionState({ modelId: startOptions.modelId || DEFAULT_MODEL_ID, autoAccept: startOptions.autoAccept });
+  const resolved = resolveStartOptions(startOptions, loadSettings());
+  configuredMaxToolRounds = resolved.maxToolRounds;
+  const session = createSessionState({
+    modelId: resolved.modelId || DEFAULT_MODEL_ID,
+    autoAccept: resolved.autoAccept,
+    mode: resolved.mode,
+  });
   loadCurrentPlanFromWorkspace(session, process.cwd());
   session.subagents = createSubagentQueue({ parentPermissionMode: session.permissionMode });
   let currentModel = getModelById(session.currentModelId) || MODELS[0];
@@ -951,6 +962,7 @@ async function streamAgentResponse(
     let result = await runAgentTurn({
       messages,
       workspaceRoot: process.cwd(),
+      maxToolRounds: configuredMaxToolRounds,
       mode: session.mode,
       permissionMode: session.permissionMode,
       session: permissionSession,
@@ -995,6 +1007,7 @@ async function streamAgentResponse(
         mode: session.mode,
         permissionMode: session.permissionMode,
         session: permissionSession,
+        maxToolRounds: configuredMaxToolRounds,
         handleAgentTool: (toolCall) => handleAgentTaskToolCall(toolCall, model, session, hooks),
         complete: (nextMessages) => chatCompleteMessage(nextMessages, model, buildProviderToolSpecs(session.mode)),
       });

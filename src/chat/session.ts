@@ -7,6 +7,7 @@ export type PermissionMode = 'ask' | 'bypass' | 'plan';
 export interface SessionOptions {
   modelId: string;
   autoAccept?: boolean;
+  mode?: AiMode;
 }
 
 export interface AiSessionState {
@@ -22,14 +23,16 @@ export interface AiSessionState {
 }
 
 export function createSessionState(options: SessionOptions): AiSessionState {
-  return {
-    mode: options.autoAccept ? 'agent' : 'chat',
-    permissionMode: options.autoAccept ? 'bypass' : 'ask',
+  const state: AiSessionState = {
+    mode: 'chat',
+    permissionMode: 'ask',
     currentModelId: options.modelId,
     autoAccept: Boolean(options.autoAccept),
     inSubmenu: false,
     activeSkillIds: [],
   };
+  // Without an explicit mode, auto accept has always implied agent mode.
+  return setMode(state, options.mode ?? (options.autoAccept ? 'agent' : 'chat'));
 }
 
 export function setMode(state: AiSessionState, mode: AiMode): AiSessionState {
