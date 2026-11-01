@@ -1,39 +1,50 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { IpcRendererEvent } from 'electron';
-import { validateDesktopCommand } from '../main/permissions';
+
+// Sandboxed preload scripts may only require 'electron', so this file imports nothing local and holds its own
+// channel list. The main process validates every payload; nothing here is a security boundary on its own.
+const REQUEST_CHANNELS = new Set<string>([
+  'cli:run',
+  'release:getLatest',
+  'release:openLatest',
+  'release:openAsset',
+  'desktop-install:list',
+  'desktop-install:run',
+  'desktop-skills:list',
+  'desktop-skills:install',
+  'desktop-clear:scan',
+  'desktop-clear:kill',
+  'app:getState',
+  'settings:set',
+  'settings:reset',
+  'provider:save',
+  'workspace:choose',
+  'workspace:set',
+  'github:summary',
+  'launch:list',
+  'launch:run',
+  'ai:createSession',
+  'ai:send',
+  'ai:approve',
+  'ai:abort',
+  'ai:setMode',
+  'ai:reset',
+  'ai:close',
+]);
 
 contextBridge.exposeInMainWorld('zeroOneCli', {
-  runCommand: (command: string) => {
-    const validation = validateDesktopCommand(command);
-    if (!validation.allowed) {
-      return Promise.resolve({ ok: false, output: validation.reason || `Command not allowed: ${command}` });
+  invoke: (channel: string, payload?: unknown): Promise<unknown> => {
+    if (typeof channel !== 'string' || !REQUEST_CHANNELS.has(channel)) {
+      return Promise.resolve({ ok: false, error: `Unknown channel: ${String(channel)}`, code: 'unknown_channel' });
     }
-    return ipcRenderer.invoke('cli:run', command);
+    return ipcRenderer.invoke(channel, payload);
   },
-  launchAiSession: (request?: { mode?: 'chat' | 'agent' | 'plan' }) => ipcRenderer.invoke('ai:launch', request || {}),
-  sendAiMessage: (request: {
-    sessionId: string;
-    mode: 'chat' | 'agent' | 'plan';
-    text: string;
-  }) => ipcRenderer.invoke('ai:message', request),
-  // Subscribe to live agent progress streamed during an ai:message turn.
-  // Returns an unsubscribe function. ipcRenderer itself is never exposed.
-  onAiEvent: (callback: (payload: { sessionId: string; event: unknown; file?: unknown }) => void): (() => void) => {
-    const listener = (_event: IpcRendererEvent, payload: { sessionId: string; event: unknown; file?: unknown }) => {
-      callback(payload);
-    };
+  // Subscribe to streamed agent events. Returns an unsubscribe function; ipcRenderer itself is never exposed.
+  onAiEvent: (callback: (payload: unknown) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, payload: unknown): void => callback(payload);
     ipcRenderer.on('ai:event', listener);
     return () => {
       ipcRenderer.removeListener('ai:event', listener);
     };
   },
-  getLatestRelease: () => ipcRenderer.invoke('release:getLatest'),
-  openLatestRelease: () => ipcRenderer.invoke('release:openLatest'),
-  openReleaseAsset: (url: string) => ipcRenderer.invoke('release:openAsset', url),
-  listInstallTargets: () => ipcRenderer.invoke('desktop-install:list'),
-  runInstallTarget: (request: { key: string; latest?: boolean; confirm?: boolean }) => ipcRenderer.invoke('desktop-install:run', request),
-  listSkillPackages: () => ipcRenderer.invoke('desktop-skills:list'),
-  installSkillPackage: (request: { skillKey: string; targetKeys: string[]; confirm?: boolean }) => ipcRenderer.invoke('desktop-skills:install', request),
-  scanClearProcesses: () => ipcRenderer.invoke('desktop-clear:scan'),
-  killClearProcesses: (request: { pids: number[]; confirm?: boolean }) => ipcRenderer.invoke('desktop-clear:kill', request),
 });

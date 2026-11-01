@@ -1,38 +1,44 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
 import * as path from 'path';
-import { killDesktopClearProcesses, scanDesktopClearProcesses } from './clear-actions';
-import { sendDesktopAiMessage } from './ai-session';
-import { runDesktopCli, launchDesktopAiSession } from './cli-runner';
-import { getLatestRelease, getReleasePageUrl } from './github-release';
-import { listDesktopInstallTargets, runDesktopInstallTarget } from './install-actions';
-import { createReleaseAssetAllowlist, isAllowedReleaseAssetUrl, rememberReleaseAssetUrls } from './release-assets';
-import { installDesktopSkillPackage, listDesktopSkillCatalog } from './skills-actions';
+import { resolveRuntimeRoot } from './runtime';
+import { registerToolChannels } from './tools-ipc';
+import { isAllowedRendererUrl, isTrustedSender } from './trust';
+import { REQUEST_CHANNELS } from '../shared/channels';
+import type { DesktopApiHandle } from './runtime';
 
-const releaseAssetUrls = createReleaseAssetAllowlist();
-
-function isAllowedRendererUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (url.protocol === 'http:' || url.protocol === 'https:')
-      && (url.hostname === '127.0.0.1' || url.hostname === 'localhost');
-  } catch {
-    return false;
-  }
-}
+let mainWindow: BrowserWindow | null = null;
+let api: DesktopApiHandle | null = null;
 
 function createWindow(): void {
   const win = new BrowserWindow({
-    width: 1440,
-    height: 920,
-    minWidth: 1100,
-    minHeight: 720,
+    width: 1280,
+    height: 860,
+    minWidth: 880,
+    minHeight: 600,
     title: '0-1 CLI',
-    backgroundColor: '#101113',
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
+  });
+  mainWindow = win;
+
+  // Show once painted, so the user never sees a blank window while the renderer loads.
+  win.once('ready-to-show', () => win.show());
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null;
+  });
+
+  // Links open in the system browser; the app window itself never navigates away.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https:\/\//.test(url)) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (!isAllowedRendererUrl(url) && !url.startsWith('file:')) event.preventDefault();
   });
 
   const devUrl = process.env.VITE_DEV_SERVER_URL;
@@ -44,108 +50,84 @@ function createWindow(): void {
   }
 }
 
-function isTrustedSender(value: string): boolean {
-  return value.startsWith('file:') || isAllowedRendererUrl(value);
+function sendToRenderer(channel: 'ai:event', payload: unknown): void {
+  const win = mainWindow;
+  if (!win || win.isDestroyed() || win.webContents.isDestroyed()) return;
+  win.webContents.send(channel, payload);
 }
 
-app.whenReady().then(() => {
-  ipcMain.handle('cli:run', (event, command: string) => {
-    const senderUrl = event.senderFrame?.url || '';
-    if (isTrustedSender(senderUrl)) {
-      return runDesktopCli(command);
-    }
-    return { ok: false, output: 'IPC sender is not trusted.' };
-  });
-  ipcMain.handle('ai:launch', (event, request?: { mode?: string }) => {
-    const senderUrl = event.senderFrame?.url || '';
-    if (!isTrustedSender(senderUrl)) {
-      return { ok: false, output: 'IPC sender is not trusted.' };
-    }
-    return launchDesktopAiSession(request);
-  });
-  ipcMain.handle('ai:message', (event, request) => {
-    const senderUrl = event.senderFrame?.url || '';
-    if (!isTrustedSender(senderUrl)) {
-      return { ok: false, error: 'IPC sender is not trusted.' };
-    }
-    // Pass the requesting WebContents so the embedded turn can stream live
-    // AgentTurnEvents back over the 'ai:event' channel.
-    return sendDesktopAiMessage(request, event.sender);
-  });
-  ipcMain.handle('release:getLatest', async (event) => {
-    const senderUrl = event.senderFrame?.url || '';
-    if (!isTrustedSender(senderUrl)) {
-      return { ok: false, repo: 'AIMFllyYS/0-1-CLI', error: 'IPC sender is not trusted.' };
-    }
-    const release = await getLatestRelease();
-    rememberReleaseAssetUrls(releaseAssetUrls, release);
-    return release;
-  });
-  ipcMain.handle('release:openLatest', async (event) => {
-    const senderUrl = event.senderFrame?.url || '';
-    const url = getReleasePageUrl();
-    if (!isTrustedSender(senderUrl)) {
-      return { ok: false, url, error: 'IPC sender is not trusted.' };
-    }
-    await shell.openExternal(url);
-    return { ok: true, url };
-  });
-  ipcMain.handle('release:openAsset', async (event, url: string) => {
-    const senderUrl = event.senderFrame?.url || '';
-    if (!isTrustedSender(senderUrl)) {
-      return { ok: false, url: typeof url === 'string' ? url : '', error: 'IPC sender is not trusted.' };
-    }
-    if (!isAllowedReleaseAssetUrl(releaseAssetUrls, url)) {
-      return { ok: false, url: typeof url === 'string' ? url : '', error: 'Release asset is not from the latest GitHub release.' };
-    }
-    await shell.openExternal(url);
-    return { ok: true, url };
-  });
-  ipcMain.handle('desktop-install:list', (event) => {
-    const senderUrl = event.senderFrame?.url || '';
-    if (!isTrustedSender(senderUrl)) return [];
-    return listDesktopInstallTargets();
-  });
-  ipcMain.handle('desktop-install:run', (event, request) => {
-    const senderUrl = event.senderFrame?.url || '';
-    if (!isTrustedSender(senderUrl)) {
-      return { ok: false, output: 'IPC sender is not trusted.' };
-    }
-    return runDesktopInstallTarget(request);
-  });
-  ipcMain.handle('desktop-skills:list', (event) => {
-    const senderUrl = event.senderFrame?.url || '';
-    if (!isTrustedSender(senderUrl)) return { packages: [], targets: [] };
-    return listDesktopSkillCatalog();
-  });
-  ipcMain.handle('desktop-skills:install', (event, request) => {
-    const senderUrl = event.senderFrame?.url || '';
-    if (!isTrustedSender(senderUrl)) {
-      return { ok: false, output: 'IPC sender is not trusted.' };
-    }
-    return installDesktopSkillPackage(request);
-  });
-  ipcMain.handle('desktop-clear:scan', (event) => {
-    const senderUrl = event.senderFrame?.url || '';
-    if (!isTrustedSender(senderUrl)) {
-      return { ok: false, processes: [], total: 0, filtered: 0, output: 'IPC sender is not trusted.' };
-    }
-    return scanDesktopClearProcesses();
-  });
-  ipcMain.handle('desktop-clear:kill', (event, request) => {
-    const senderUrl = event.senderFrame?.url || '';
-    if (!isTrustedSender(senderUrl)) {
-      return { ok: false, output: 'IPC sender is not trusted.' };
-    }
-    return killDesktopClearProcesses(request);
-  });
-  createWindow();
+function registerIpc(handle: DesktopApiHandle): void {
+  for (const channel of REQUEST_CHANNELS) {
+    ipcMain.handle(channel, (event, payload) => {
+      if (!isTrustedSender(event.senderFrame?.url || '')) {
+        return { ok: false, error: 'IPC sender is not trusted.', code: 'untrusted_sender' };
+      }
+      return handle.invoke(channel, payload);
+    });
+  }
+}
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
   });
-});
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
+  app.whenReady().then(async () => {
+    // The renderer is a local page; deny every permission prompt it could raise.
+    session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+
+    api = await createApi();
+    registerIpc(api);
+    registerToolChannels();
+    await api.init();
+    createWindow();
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+
+  app.on('before-quit', () => {
+    api?.dispose();
+  });
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit();
+  });
+}
+
+async function createApi(): Promise<DesktopApiHandle> {
+  const { createDesktopApi } = require(path.join(resolveRuntimeRoot(), 'desktop', 'api.js'));
+  const { launchEntry } = require(path.join(resolveRuntimeRoot(), 'modules', 'launch', 'terminal.js'));
+  const { applyProviderToEnv } = require(path.join(resolveRuntimeRoot(), 'settings', 'provider.js'));
+
+  // Fill any variable the environment left unset from the saved credentials before the first request.
+  applyProviderToEnv(process.env);
+
+  return createDesktopApi({
+    version: app.getVersion(),
+    emit: (channel: 'ai:event', payload: unknown) => sendToRenderer(channel, payload),
+    chooseDirectory: async () => {
+      const options = { title: '选择工作目录', properties: ['openDirectory' as const] };
+      const result = mainWindow
+        ? await dialog.showOpenDialog(mainWindow, options)
+        : await dialog.showOpenDialog(options);
+      return result.canceled ? undefined : result.filePaths[0];
+    },
+    setLoginItem: (enabled: boolean) => {
+      // A development build would register the bare electron binary, not the app, so refuse it.
+      if (!app.isPackaged) {
+        if (enabled) throw new Error('开机启动只在安装版中可用');
+        return;
+      }
+      app.setLoginItemSettings({ openAtLogin: enabled, path: process.execPath });
+    },
+    getLoginItem: () => (app.isPackaged ? app.getLoginItemSettings().openAtLogin : false),
+    runLaunch: (entry: unknown) => launchEntry(entry),
+  });
+}

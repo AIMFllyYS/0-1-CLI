@@ -94,15 +94,11 @@ test('electron-builder targets github release output', () => {
 
 test('github release reader maps downloadable assets without hardcoded tokens', () => {
   const release = fs.readFileSync(path.join('desktop', 'src', 'main', 'github-release.ts'), 'utf8');
-  const main = fs.readFileSync(path.join('desktop', 'src', 'main', 'main.ts'), 'utf8');
-  const renderer = readRenderer();
+  const tools = fs.readFileSync(path.join('desktop', 'src', 'main', 'tools-ipc.ts'), 'utf8');
 
   assert.match(release, /browser_download_url/);
   assert.match(release, /releases\/latest/);
   assert.doesNotMatch(release, /ghp_[A-Za-z0-9_]+/);
-  assert.match(main, /release:getLatest/);
-  assert.match(main, /rememberReleaseAssetUrls/);
-  assert.match(renderer, /getLatestRelease/);
-  assert.match(renderer, /openReleaseAsset/);
-  assert.match(renderer, /browserDownloadUrl/);
+  assert.match(tools, /release:getLatest/);
+  assert.match(tools, /rememberReleaseAssetUrls/);
 });

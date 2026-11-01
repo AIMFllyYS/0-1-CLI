@@ -80,33 +80,28 @@ test('desktop message list renders a bounded recent window for smoother long cha
 });
 
 test('desktop exposes embedded ai message ipc without raw renderer shell access', () => {
-  const main = read('desktop/src/main/main.ts');
+  const api = read('src/desktop/api.ts');
   const preload = read('desktop/src/preload/index.ts');
-  const aiSession = read('desktop/src/main/ai-session.ts');
+  const host = read('src/chat/agent/host.ts');
 
-  assert.match(main, /ai:message/);
-  assert.match(preload, /sendAiMessage/);
-  assert.match(aiSession, /sendDesktopAiMessage/);
-  assert.match(aiSession, /runAgentTurn|chatCompleteMessage/);
-  assert.match(aiSession, /buildSystemPrompt/);
-  assert.match(aiSession, /systemPrompt/);
-  assert.doesNotMatch(preload, /sendAiMessage[\s\S]*validateDesktopCommand/);
-  assert.doesNotMatch(aiSession, /shell:\s*true/);
+  assert.match(preload, /'ai:send'/);
+  assert.match(api, /'ai:send'/);
+  assert.match(host, /buildSystemPrompt/);
+  assert.match(host, /class AgentHost/);
+  assert.doesNotMatch(preload, /child_process|exec\(|spawn\(/);
+  assert.doesNotMatch(host, /shell:\s*true/);
 });
 
 test('desktop ai session owns conversation history and maps agent events to activity', () => {
-  const aiSession = read('desktop/src/main/ai-session.ts');
-  const conversationState = read('desktop/src/renderer/codex-shell/useConversationState.ts');
+  const api = read('src/desktop/api.ts');
+  const host = read('src/chat/agent/host.ts');
 
-  assert.match(aiSession, /desktopAiSessions\s*=\s*new Map/);
-  assert.match(aiSession, /getDesktopAiSession/);
-  assert.match(aiSession, /appendDesktopUserMessage/);
-  assert.match(aiSession, /onEvent:\s*\(event\)/);
-  assert.match(aiSession, /activityFromAgentEvents/);
-  assert.match(aiSession, /session\.messages/);
-  assert.match(aiSession, /session\.activity/);
-  assert.doesNotMatch(aiSession, /const turnMessages:[\s\S]*safeMessages\(request\.messages, request\.text\)/);
-  assert.doesNotMatch(conversationState, /messages:\s*\[\.\.\.messages/);
+  assert.match(api, /sessions = new Map/);
+  assert.match(api, /emit: \(event\) => deps\.emit\('ai:event'/);
+  assert.match(host, /private messages: ChatMessage\[\]/);
+  assert.match(host, /type: 'agent_event'/);
+  assert.match(host, /type: 'approval_request'/);
+  assert.match(host, /type: 'turn_end'/);
 });
 
 // ---------------------------------------------------------------------------

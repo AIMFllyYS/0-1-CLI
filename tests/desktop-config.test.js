@@ -3,6 +3,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
+function read(file) {
+  return fs.readFileSync(path.join(...file.split('/')), 'utf8');
+}
+
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
@@ -120,26 +124,21 @@ test('desktop builder is wired for GitHub release publishing', () => {
 });
 
 test('desktop exposes trusted GitHub release IPC without hardcoded tokens', () => {
-  const main = fs.readFileSync(path.join('desktop', 'src', 'main', 'main.ts'), 'utf8');
-  const preload = fs.readFileSync(path.join('desktop', 'src', 'preload', 'index.ts'), 'utf8');
-  const release = fs.readFileSync(path.join('desktop', 'src', 'main', 'github-release.ts'), 'utf8');
-  const renderer = readRenderer();
+  const tools = read('desktop/src/main/tools-ipc.ts');
+  const preload = read('desktop/src/preload/index.ts');
+  const release = read('desktop/src/main/github-release.ts');
 
-  assert.match(main, /release:getLatest/);
-  assert.match(main, /release:openLatest/);
-  assert.match(main, /release:openAsset/);
-  assert.match(main, /releaseAssetUrls/);
-  assert.match(main, /shell/);
-  assert.match(preload, /getLatestRelease/);
-  assert.match(preload, /openLatestRelease/);
-  assert.match(preload, /openReleaseAsset/);
+  assert.match(tools, /release:getLatest/);
+  assert.match(tools, /release:openLatest/);
+  assert.match(tools, /release:openAsset/);
+  assert.match(tools, /releaseAssetUrls/);
+  assert.match(tools, /shell/);
+  assert.match(preload, /release:getLatest/);
+  assert.match(preload, /release:openLatest/);
+  assert.match(preload, /release:openAsset/);
   assert.match(release, /api\.github\.com\/repos\/AIMFllyYS\/0-1-CLI\/releases\/latest/);
   assert.doesNotMatch(release, /GITHUB_PERSONAL_ACCESS_TOKEN\s*=/);
   assert.doesNotMatch(release, /ghp_[A-Za-z0-9_]+/);
-  assert.doesNotMatch(renderer, /getLatestRelease/);
-  assert.doesNotMatch(renderer, /openLatestRelease/);
-  assert.doesNotMatch(renderer, /openReleaseAsset/);
-  assert.doesNotMatch(renderer, /href="https:\/\/github\.com\/"/);
 });
 
 test('desktop primary renderer omits release asset panel from the ai workspace', () => {
@@ -161,14 +160,13 @@ test('desktop local release output is ignored by git', () => {
 });
 
 test('desktop ai bridge ipc is isolated from cli run channel', () => {
-  const main = fs.readFileSync(path.join('desktop', 'src', 'main', 'main.ts'), 'utf8');
-  const runner = fs.readFileSync(path.join('desktop', 'src', 'main', 'cli-runner.ts'), 'utf8');
-  const preload = fs.readFileSync(path.join('desktop', 'src', 'preload', 'index.ts'), 'utf8');
+  const tools = read('desktop/src/main/tools-ipc.ts');
+  const api = read('src/desktop/api.ts');
+  const runner = read('desktop/src/main/cli-runner.ts');
 
-  assert.match(main, /ipcMain\.handle\('ai:launch'/);
-  assert.match(main, /ipcMain\.handle\('cli:run'/);
-  assert.match(runner, /export function launchDesktopAiSession/);
+  assert.match(tools, /'cli:run'/);
+  assert.match(api, /'ai:send'/);
   assert.match(runner, /export function runDesktopCli/);
-  assert.match(preload, /launchAiSession/);
-  assert.doesNotMatch(preload, /launchAiSession[\s\S]*validateDesktopCommand/);
+  assert.doesNotMatch(api, /cli:run/);
+  assert.doesNotMatch(tools, /ai:send|ai:approve/);
 });
