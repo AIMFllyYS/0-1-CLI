@@ -307,3 +307,198 @@ export function chatCompleteMessage(messages: ChatMessage[], model: ModelInfo, t
     req.end();
   });
 }
+
+export interface StreamMessageOptions {
+  signal?: AbortSignal;
+  onToken?: (token: string) => void;
+  onReasoning?: (token: string) => void;
+}
+
+interface PartialToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+function abortError(): Error {
+  const error = new Error('Request cancelled');
+  error.name = 'AbortError';
+  return error;
+}
+
+let generatedToolCallCounter = 0;
+
+/**
+ * Streaming chat completion that also assembles tool calls, so a tool-using agent turn can show
+ * tokens as they arrive. Resolves with the same message shape as chatCompleteMessage.
+ */
+export function chatStreamMessage(
+  messages: ChatMessage[],
+  model: ModelInfo,
+  tools?: any[],
+  options: StreamMessageOptions = {},
+): Promise<ChatMessage> {
+  return new Promise((resolve, reject) => {
+    if (options.signal?.aborted) {
+      reject(abortError());
+      return;
+    }
+
+    const provider = getProviderConfig(model);
+    if (!provider.key) {
+      const name = provider.name === 'custom' ? 'AI_API_KEY' : model.provider === 'zhipu' ? 'ZHIPU_API_KEY' : 'DEEPSEEK_API_KEY';
+      reject(new Error(`${name} 未配置，请检查设置`));
+      return;
+    }
+
+    const body: any = { model: provider.modelId, messages, stream: true, max_tokens: 4096 };
+    if (shouldAttachProviderTools(model, provider, tools)) {
+      body.tools = tools;
+    }
+    const data = JSON.stringify(body);
+
+    let content = '';
+    const toolCalls = new Map<number, PartialToolCall>();
+    let settled = false;
+
+    const finish = (): void => {
+      if (settled) return;
+      settled = true;
+      options.signal?.removeEventListener('abort', onAbort);
+      const ordered = [...toolCalls.entries()].sort((a, b) => a[0] - b[0]).map(([, call]) => call);
+      resolve({
+        role: 'assistant',
+        content,
+        tool_calls: ordered.length === 0
+          ? undefined
+          : ordered.map((call) => ({
+              id: call.id || `call_${Date.now().toString(36)}_${generatedToolCallCounter++}`,
+              type: 'function' as const,
+              function: { name: call.name, arguments: call.arguments },
+            })),
+      });
+    };
+    const fail = (error: Error): void => {
+      if (settled) return;
+      settled = true;
+      options.signal?.removeEventListener('abort', onAbort);
+      reject(error);
+    };
+
+    const transport = requestForProvider(provider);
+    const req = transport.request({
+      hostname: provider.hostname,
+      port: provider.port,
+      path: provider.path,
+      method: 'POST',
+      // A dedicated connection per stream so an abort never poisons the shared keep-alive pool.
+      agent: false,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + provider.key,
+        'Content-Length': Buffer.byteLength(data),
+        'Accept': 'text/event-stream',
+      },
+    }, (res) => {
+      if (res.statusCode && res.statusCode >= 400) {
+        const errDecoder = new StringDecoder('utf8');
+        let errBody = '';
+        res.on('data', (chunk: Buffer) => { errBody += errDecoder.write(chunk); });
+        res.on('end', () => {
+          errBody += errDecoder.end();
+          if (res.statusCode === 401) {
+            fail(new Error('API Key 无效或已过期，请检查设置'));
+            return;
+          }
+          try {
+            fail(new Error(JSON.parse(errBody).error?.message || `API 错误 ${res.statusCode}`));
+          } catch {
+            fail(new Error(`API 错误 ${res.statusCode}`));
+          }
+        });
+        return;
+      }
+
+      const decoder = new StringDecoder('utf8');
+      let buffer = '';
+      let done = false;
+
+      const handlePayload = (payload: string): void => {
+        if (payload === '[DONE]') {
+          done = true;
+          finish();
+          req.destroy();
+          return;
+        }
+        let parsed: any;
+        try {
+          parsed = JSON.parse(payload);
+        } catch {
+          return;
+        }
+        const delta = parsed.choices?.[0]?.delta;
+        if (!delta) return;
+
+        if (delta.reasoning_content) options.onReasoning?.(delta.reasoning_content);
+        if (delta.content) {
+          content += delta.content;
+          options.onToken?.(delta.content);
+        }
+        if (Array.isArray(delta.tool_calls)) {
+          for (const part of delta.tool_calls) {
+            const index = typeof part.index === 'number' ? part.index : 0;
+            const call = toolCalls.get(index) || { id: '', name: '', arguments: '' };
+            if (part.id) call.id = part.id;
+            if (part.function?.name) call.name += part.function.name;
+            if (part.function?.arguments) call.arguments += part.function.arguments;
+            toolCalls.set(index, call);
+          }
+        }
+      };
+
+      const handleLine = (line: string): void => {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) return;
+        handlePayload(trimmed.slice(5).trim());
+      };
+
+      res.on('data', (chunk: Buffer) => {
+        if (done) return;
+        buffer += decoder.write(chunk);
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (done) return;
+          handleLine(line);
+        }
+      });
+      res.on('end', () => {
+        if (!done) {
+          buffer += decoder.end();
+          if (buffer.trim()) handleLine(buffer);
+          finish();
+        }
+      });
+      res.on('error', (error) => {
+        if (!done) fail(error);
+      });
+    });
+
+    function onAbort(): void {
+      fail(abortError());
+      req.destroy();
+    }
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+
+    req.on('error', (error) => {
+      // After a normal [DONE] we destroy the socket ourselves; that error is not a failure.
+      fail(error);
+    });
+    req.setTimeout(60000, () => {
+      fail(new Error('请求超时 (60s)'));
+      req.destroy();
+    });
+    req.write(data);
+    req.end();
+  });
+}
