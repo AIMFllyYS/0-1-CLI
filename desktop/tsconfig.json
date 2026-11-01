@@ -3,7 +3,10 @@
     "target": "ES2020",
     "module": "commonjs",
     "jsx": "react-jsx",
-    "lib": ["ES2020", "DOM"],
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,
@@ -11,5 +14,12 @@
     "moduleResolution": "node",
     "skipLibCheck": true
   },
-  "include": ["src/**/*"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "src/renderer/main.tsx",
+    "src/renderer/dev/**",
+    "src/vite-env.d.ts"
+  ]
 }

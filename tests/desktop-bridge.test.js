@@ -132,3 +132,28 @@ test('the packaged app ships the runtime modules the main process loads', () => 
     assert.equal(fs.existsSync(path.join('dist', ...parts)), true, `${parts.join('/')} must exist in the CLI build that gets copied into the app`);
   }
 });
+
+test('desktop exposes embedded ai message ipc without raw renderer shell access', () => {
+  const api = read('src/desktop/api.ts');
+  const preload = read('desktop/src/preload/index.ts');
+  const host = read('src/chat/agent/host.ts');
+
+  assert.match(preload, /'ai:send'/);
+  assert.match(api, /'ai:send'/);
+  assert.match(host, /buildSystemPrompt/);
+  assert.match(host, /class AgentHost/);
+  assert.doesNotMatch(preload, /child_process|exec\(|spawn\(/);
+  assert.doesNotMatch(host, /shell:\s*true/);
+});
+
+test('desktop ai session owns conversation history and maps agent events to activity', () => {
+  const api = read('src/desktop/api.ts');
+  const host = read('src/chat/agent/host.ts');
+
+  assert.match(api, /sessions = new Map/);
+  assert.match(api, /emit: \(event\) => deps\.emit\('ai:event'/);
+  assert.match(host, /private messages: ChatMessage\[\]/);
+  assert.match(host, /type: 'agent_event'/);
+  assert.match(host, /type: 'approval_request'/);
+  assert.match(host, /type: 'turn_end'/);
+});

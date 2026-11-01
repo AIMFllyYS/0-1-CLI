@@ -52,6 +52,34 @@ export interface GithubState {
   error?: string;
 }
 
+export interface LaunchEntryView {
+  id: string;
+  name: string;
+  path: string;
+  start: string;
+  kind: string;
+}
+
+export interface LaunchState {
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  entries: LaunchEntryView[];
+  error?: string;
+}
+
+// Native tool channels the renderer may call through callTool; anything else is refused before it reaches the bridge.
+const TOOL_CHANNELS: readonly string[] = [
+  'cli:run',
+  'desktop-install:list',
+  'desktop-install:run',
+  'desktop-skills:list',
+  'desktop-skills:install',
+  'desktop-clear:scan',
+  'desktop-clear:kill',
+  'release:getLatest',
+  'release:openLatest',
+  'release:openAsset',
+];
+
 export interface AppState {
   ready: boolean;
   bridgeMissing: boolean;
@@ -67,6 +95,7 @@ export interface AppState {
   activeId: string;
   toast?: Toast;
   github: GithubState;
+  launch: LaunchState;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -93,6 +122,7 @@ function initialState(): AppState {
     sessions: [],
     activeId: '',
     github: { status: 'idle' },
+    launch: { status: 'idle', entries: [] },
   };
 }
 
@@ -352,6 +382,34 @@ export function createStore(bridge: Bridge | undefined) {
       update({ provider: result.provider });
       toast('success', '模型设置已保存');
       return { ok: true };
+    },
+
+    async loadLaunch(): Promise<void> {
+      update({ launch: { ...state.launch, status: 'loading' } });
+      const result = await invoke('launch:list');
+      if (!result.ok) {
+        update({ launch: { status: 'error', entries: state.launch.entries, error: errorText(result, '读取启动台失败') } });
+        return;
+      }
+      update({ launch: { status: 'ready', entries: result.entries || [] } });
+    },
+
+    async runLaunch(id: string): Promise<{ ok: boolean; error?: string }> {
+      const result = await invoke('launch:run', { id });
+      if (!result.ok) {
+        toast('error', errorText(result, '启动失败'));
+        return { ok: false, error: errorText(result, '启动失败') };
+      }
+      const entry = state.launch.entries.find((item) => item.id === id);
+      toast('success', `已在新终端启动 ${entry ? entry.name : id}`);
+      return { ok: true };
+    },
+
+    async callTool(channel: unknown, payload?: unknown): Promise<any> {
+      if (typeof channel !== 'string' || !TOOL_CHANNELS.includes(channel)) {
+        return { ok: false, error: `Channel not allowed: ${String(channel)}` };
+      }
+      return invoke(channel, payload);
     },
 
     async loadGithub(options: { force?: boolean } = {}): Promise<void> {

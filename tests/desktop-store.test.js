@@ -362,3 +362,48 @@ test('the number of pending approvals across sessions is counted for the sidebar
   assert.equal(store.pendingApprovalCount(), 2);
   await tick();
 });
+
+test('launch entries load, report a corrupt registry, and run only by id', async () => {
+  let registry = { ok: true, entries: [{ id: 'ds', name: 'DS', path: 'D:/ds', start: 'python -m http.server', kind: 'command' }] };
+  const { bridge, calls } = fakeBridge({
+    handlers: {
+      'launch:list': () => registry,
+      'launch:run': (payload) => (payload.id === 'ds' ? { ok: true, terminal: 'wt' } : { ok: false, error: '未找到 id' }),
+    },
+  });
+  const store = createStore(bridge);
+  await store.init();
+
+  await store.loadLaunch();
+  assert.equal(store.getState().launch.status, 'ready');
+  assert.equal(store.getState().launch.entries[0].id, 'ds');
+
+  assert.deepEqual(await store.runLaunch('ds'), { ok: true });
+  assert.deepEqual(calls.at(-1), { channel: 'launch:run', payload: { id: 'ds' } });
+  assert.match(store.getState().toast.text, /DS|ds/);
+
+  assert.equal((await store.runLaunch('ghost')).ok, false);
+  assert.match(store.getState().toast.text, /未找到/);
+
+  registry = { ok: false, error: '配置文件无法解析' };
+  await store.loadLaunch();
+  assert.equal(store.getState().launch.status, 'error');
+  assert.match(store.getState().launch.error, /配置文件/);
+  assert.equal(store.getState().launch.entries[0].id, 'ds', 'the last good list is kept');
+});
+
+test('callTool only forwards the whitelisted native tool channels', async () => {
+  const { bridge, calls } = fakeBridge({ handlers: { 'desktop-install:list': () => [{ key: 'cc' }] } });
+  const store = createStore(bridge);
+  await store.init();
+  const before = calls.length;
+
+  assert.deepEqual(await store.callTool('desktop-install:list'), [{ key: 'cc' }]);
+  assert.equal(calls.length, before + 1);
+
+  for (const bad of ['ai:send', 'settings:set', 'shell:exec', '', undefined, 42]) {
+    const result = await store.callTool(bad, {});
+    assert.equal(result.ok, false, String(bad));
+  }
+  assert.equal(calls.length, before + 1, 'blocked channels never reach the bridge');
+});

@@ -10,10 +10,11 @@
   "main": "dist/main/main.js",
   "scripts": {
     "copy:cli": "node scripts/copy-cli.cjs",
-    "build": "npm run copy:cli && tsc -p tsconfig.json && vite build",
+    "build": "npm run copy:cli && tsc -p tsconfig.json && tsc -p tsconfig.renderer.json && vite build",
     "dev": "vite --host 127.0.0.1",
     "dist:win": "electron-builder --win --publish never",
-    "dist:mac": "electron-builder --mac --publish never"
+    "dist:mac": "electron-builder --mac --publish never",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.renderer.json"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",

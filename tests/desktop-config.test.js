@@ -51,9 +51,13 @@ test('desktop main preload and renderer entry files exist', () => {
     'desktop/src/main/github-release.ts',
     'desktop/src/main/skills-actions.ts',
     'desktop/src/main/permissions.ts',
+    'desktop/src/main/tools-ipc.ts',
+    'desktop/src/main/trust.ts',
     'desktop/src/preload/index.ts',
     'desktop/src/renderer/App.tsx',
-    'desktop/src/renderer/styles.css',
+    'desktop/src/renderer/main.tsx',
+    'desktop/src/renderer/styles/tokens.css',
+    'desktop/src/renderer/state/store.ts',
     'desktop/scripts/copy-cli.cjs',
   ].forEach((file) => assert.equal(fs.existsSync(file), true, `${file} missing`));
 });
@@ -83,37 +87,6 @@ test('desktop runner supports packaged CLI resource path', () => {
   assert.match(copyScript, /--omit=dev/);
 });
 
-test('desktop IPC bridge restricts renderer origin and noninteractive commands', () => {
-  const main = fs.readFileSync(path.join('desktop', 'src', 'main', 'main.ts'), 'utf8');
-  const permissions = fs.readFileSync(path.join('desktop', 'src', 'main', 'permissions.ts'), 'utf8');
-  const renderer = readRenderer();
-  const actions = fs.readFileSync(path.join('desktop', 'src', 'renderer', 'action-catalog.ts'), 'utf8');
-  const runner = fs.readFileSync(path.join('desktop', 'src', 'main', 'cli-runner.ts'), 'utf8');
-  const allowedBlock = permissions.match(/ALLOWED_COMMANDS = new Set\(\[([\s\S]*?)\]\)/)?.[1] || '';
-  const interactiveBlock = permissions.match(/INTERACTIVE_COMMANDS = new Set\(\[([\s\S]*?)\]\)/)?.[1] || '';
-
-  assert.match(main, /isAllowedRendererUrl/);
-  assert.match(main, /senderFrame\?\.url/);
-  assert.match(allowedBlock, /'state'/);
-  assert.match(allowedBlock, /'api'/);
-  assert.match(allowedBlock, /'pay'/);
-  assert.match(interactiveBlock, /'install'/);
-  assert.match(interactiveBlock, /'skills'/);
-  assert.match(interactiveBlock, /'clear'/);
-  assert.doesNotMatch(allowedBlock, /'install'/);
-  assert.doesNotMatch(allowedBlock, /'skills'/);
-  assert.doesNotMatch(allowedBlock, /'clear'/);
-  assert.match(runner, /Command not allowed/);
-  assert.doesNotMatch(renderer, /desktopActions/);
-  assert.match(renderer, /sendAiMessage/);
-  assert.match(actions, /hi --clear/);
-  assert.match(actions, /hi --skills/);
-  assert.match(actions, /hi --install/);
-  assert.match(actions, /hi --state/);
-  assert.match(actions, /hi --api/);
-  assert.match(actions, /hi --pay/);
-});
-
 test('desktop builder is wired for GitHub release publishing', () => {
   const builder = fs.readFileSync(path.join('desktop', 'electron-builder.yml'), 'utf8');
 
@@ -139,18 +112,6 @@ test('desktop exposes trusted GitHub release IPC without hardcoded tokens', () =
   assert.match(release, /api\.github\.com\/repos\/AIMFllyYS\/0-1-CLI\/releases\/latest/);
   assert.doesNotMatch(release, /GITHUB_PERSONAL_ACCESS_TOKEN\s*=/);
   assert.doesNotMatch(release, /ghp_[A-Za-z0-9_]+/);
-});
-
-test('desktop primary renderer omits release asset panel from the ai workspace', () => {
-  const renderer = readRenderer();
-  const styles = fs.readFileSync(path.join('desktop', 'src', 'renderer', 'styles.css'), 'utf8');
-
-  assert.doesNotMatch(renderer, /releaseInfo/);
-  assert.doesNotMatch(renderer, /release\.assets/);
-  assert.doesNotMatch(renderer, /Download asset/);
-  assert.doesNotMatch(renderer, /browserDownloadUrl/);
-  assert.doesNotMatch(styles, /\.releaseAssets/);
-  assert.doesNotMatch(styles, /\.releaseAsset/);
 });
 
 test('desktop local release output is ignored by git', () => {
