@@ -137,10 +137,17 @@ export class AgentHost {
     Object.assign(this.permissions, { allowedTools: undefined, deniedTools: undefined, allowedRules: [], deniedRules: [], recentDenials: [] });
   }
 
+  getPendingApproval(): ApprovalRequest | null {
+    return this.pending ? this.pending.request : null;
+  }
+
   abort(): void {
     this.controller?.abort();
-    // A pending approval has to settle too, or the turn would wait forever.
-    this.pending?.settle('cancel');
+    // A pending approval has to settle too, or the turn would wait forever. Clearing it first means a
+    // late resolveApproval cannot settle it a second time.
+    const pending = this.pending;
+    this.pending = null;
+    pending?.settle('cancel');
   }
 
   resolveApproval(id: string, answer: ApprovalAnswer, feedback?: string): boolean {

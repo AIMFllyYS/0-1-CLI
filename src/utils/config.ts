@@ -11,6 +11,8 @@ export interface CliConfig {
   settings?: unknown;
   // Model provider credentials, see src/settings/provider.ts. Never printed by `hi config`.
   provider?: unknown;
+  // Desktop app state (last workspace and recent workspaces), see src/desktop/api.ts.
+  desktop?: unknown;
 }
 
 export class ConfigParseError extends Error {
