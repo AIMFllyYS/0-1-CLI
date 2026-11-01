@@ -1,0 +1,99 @@
+/* Design tokens. Every colour, size and radius used elsewhere comes from here, so a theme is only a different set of values. */
+:root {
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+  --font-serif: "Source Han Serif SC", "Noto Serif SC", "Songti SC", Georgia, Cambria, serif;
+  --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, "SF Mono", ui-monospace, monospace;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14.5px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-hero: 32px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  --sidebar-width: 272px;
+  --reading-width: 760px;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --duration: 140ms;
+}
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #faf9f5;
+  --bg-sunken: #f2f0e8;
+  --surface: #ffffff;
+  --surface-2: #f6f4ed;
+  --surface-hover: #efece3;
+  --border: #e8e5da;
+  --border-strong: #d4d0c2;
+  --text: #1f1e1d;
+  --text-2: #5c5a52;
+  --text-3: #8b887c;
+  --accent: #c15f3c;
+  --accent-hover: #ab5232;
+  --accent-soft: #f6e6de;
+  --on-accent: #ffffff;
+  --success: #3a7a4d;
+  --success-soft: #e3f0e4;
+  --warning: #9a6a1c;
+  --warning-soft: #f6ecd6;
+  --danger: #b03a3a;
+  --danger-soft: #f8e4e1;
+  --info: #3a6ea5;
+  --diff-add: #e3f1e1;
+  --diff-add-text: #1f5a2c;
+  --diff-del: #f9e2df;
+  --diff-del-text: #8a2b2b;
+  --shadow-sm: 0 1px 2px rgba(31, 30, 29, 0.06);
+  --shadow-md: 0 4px 16px rgba(31, 30, 29, 0.09);
+  --shadow-lg: 0 16px 48px rgba(31, 30, 29, 0.16);
+  --scrim: rgba(31, 30, 29, 0.38);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1f1e1d;
+  --bg-sunken: #191817;
+  --surface: #2a2927;
+  --surface-2: #302f2c;
+  --surface-hover: #383632;
+  --border: #3b3935;
+  --border-strong: #4d4a44;
+  --text: #f1eee4;
+  --text-2: #b9b5a8;
+  --text-3: #8a867a;
+  --accent: #d97757;
+  --accent-hover: #e48b6d;
+  --accent-soft: #3d2c25;
+  --on-accent: #1f1e1d;
+  --success: #6dba82;
+  --success-soft: #223127;
+  --warning: #d6a64f;
+  --warning-soft: #372e1c;
+  --danger: #e57b78;
+  --danger-soft: #3a2423;
+  --info: #7fb0e0;
+  --diff-add: #1f3325;
+  --diff-add-text: #9ad6a8;
+  --diff-del: #3b2423;
+  --diff-del-text: #f0a5a2;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --scrim: rgba(0, 0, 0, 0.55);
+}
