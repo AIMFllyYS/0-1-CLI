@@ -1,147 +1,282 @@
 import * as fs from 'fs';
-import * as path from 'path';
 import { renderMarkdown } from '../utils/markdown';
+import { listLaunch } from './launch/registry';
+import type { LaunchEntry } from '../types';
 
-interface AppInfo {
+export interface AppInfo {
   name: string;
+  exe: string;
   paths: string[];
   launchCmd: string;
   description: string;
 }
 
-const COMMON_APPS: AppInfo[] = [
+type Env = Record<string, string | undefined>;
+
+export interface DetectDeps {
+  env?: Env;
+  exists?: (target: string) => boolean;
+  readdir?: (dir: string) => string[];
+}
+
+export interface DetectedApp {
+  app: AppInfo;
+  foundPath: string | null;
+}
+
+export const APP_CATALOG: AppInfo[] = [
   {
     name: 'VS Code',
+    exe: 'code',
     paths: [
-      'C:/Users/Lenovo/AppData/Local/Programs/Microsoft VS Code/Code.exe',
-      'C:/Program Files/Microsoft VS Code/Code.exe'
+      '%LOCALAPPDATA%/Programs/Microsoft VS Code/Code.exe',
+      '%PROGRAMFILES%/Microsoft VS Code/Code.exe',
     ],
     launchCmd: 'code .',
-    description: 'Code editor'
+    description: 'Code editor',
   },
   {
     name: 'Cursor',
+    exe: 'cursor',
     paths: [
-      'C:/Users/Lenovo/AppData/Local/Cursor/app-*/Cursor.exe',
-      'C:/Program Files/Cursor/Cursor.exe'
+      '%LOCALAPPDATA%/Programs/cursor/Cursor.exe',
+      '%LOCALAPPDATA%/Cursor/app-*/Cursor.exe',
+      '%PROGRAMFILES%/Cursor/Cursor.exe',
     ],
     launchCmd: 'cursor .',
-    description: 'AI-first code editor'
+    description: 'AI-first code editor',
   },
   {
     name: 'Windows Terminal',
-    paths: [
-      'C:/Users/Lenovo/AppData/Local/Microsoft/WindowsApps/wt.exe',
-      'C:/Windows/System32/windowsterminal.exe'
-    ],
+    exe: 'wt',
+    paths: ['%LOCALAPPDATA%/Microsoft/WindowsApps/wt.exe'],
     launchCmd: 'wt',
-    description: 'Windows terminal'
+    description: 'Windows terminal',
   },
   {
     name: 'Chrome',
+    exe: 'chrome',
     paths: [
-      'C:/Program Files/Google/Chrome/Application/chrome.exe',
-      'C:/Users/Lenovo/AppData/Local/Google/Chrome/Application/chrome.exe'
+      '%PROGRAMFILES%/Google/Chrome/Application/chrome.exe',
+      '%PROGRAMFILES(X86)%/Google/Chrome/Application/chrome.exe',
+      '%LOCALAPPDATA%/Google/Chrome/Application/chrome.exe',
     ],
     launchCmd: 'start chrome',
-    description: 'Web browser'
+    description: 'Web browser',
   },
   {
     name: 'Edge',
+    exe: 'msedge',
     paths: [
-      'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-      'C:/Program Files/Microsoft/Edge/Application/msedge.exe'
+      '%PROGRAMFILES(X86)%/Microsoft/Edge/Application/msedge.exe',
+      '%PROGRAMFILES%/Microsoft/Edge/Application/msedge.exe',
     ],
     launchCmd: 'start msedge',
-    description: 'Microsoft Edge browser'
+    description: 'Microsoft Edge browser',
   },
   {
     name: 'GitHub Desktop',
-    paths: [
-      'C:/Users/Lenovo/AppData/Local/GitHubDesktop/GitHubDesktop.exe',
-      'C:/Program Files/GitHub Desktop/GitHubDesktop.exe'
-    ],
+    exe: 'github',
+    paths: ['%LOCALAPPDATA%/GitHubDesktop/GitHubDesktop.exe'],
     launchCmd: 'github',
-    description: 'Git GUI client'
+    description: 'Git GUI client',
   },
   {
     name: 'Node.js',
+    exe: 'node',
     paths: [
-      'C:/Program Files/nodejs/node.exe',
-      'C:/Program Files (x86)/nodejs/node.exe'
+      '%PROGRAMFILES%/nodejs/node.exe',
+      '%PROGRAMFILES(X86)%/nodejs/node.exe',
     ],
     launchCmd: 'node',
-    description: 'JavaScript runtime'
+    description: 'JavaScript runtime',
   },
   {
     name: 'Python',
+    exe: 'python',
     paths: [
-      'C:/Users/Lenovo/AppData/Local/Programs/Python/Python*/python.exe',
-      'C:/Python*/python.exe'
+      '%LOCALAPPDATA%/Programs/Python/Python*/python.exe',
+      '%SYSTEMDRIVE%/Python*/python.exe',
     ],
     launchCmd: 'python',
-    description: 'Python runtime'
+    description: 'Python runtime',
   },
   {
     name: 'Claude Code',
-    paths: [
-      'C:/Users/Lenovo/AppData/Roaming/npm/claude.cmd',
-      'C:/Program Files/claude/bin/claude.cmd'
-    ],
+    exe: 'claude',
+    paths: ['%APPDATA%/npm/claude.cmd'],
     launchCmd: 'claude',
-    description: 'Anthropic CLI'
+    description: 'Anthropic CLI',
   },
   {
     name: 'Kiro',
-    paths: [],
+    exe: 'kiro-cli',
+    paths: ['%LOCALAPPDATA%/Kiro-Cli/kiro-cli.exe'],
     launchCmd: 'kiro-cli',
-    description: 'Kiro CLI (AI coding)'
+    description: 'Kiro CLI (AI coding)',
   },
   {
     name: 'File Explorer',
-    paths: [
-      'C:/Windows/explorer.exe'
-    ],
+    exe: 'explorer',
+    paths: ['%SYSTEMROOT%/explorer.exe'],
     launchCmd: 'explorer .',
-    description: 'File explorer'
+    description: 'File explorer',
   },
   {
     name: 'Notepad',
-    paths: [
-      'C:/Windows/notepad.exe'
-    ],
+    exe: 'notepad',
+    paths: ['%SYSTEMROOT%/System32/notepad.exe', '%SYSTEMROOT%/notepad.exe'],
     launchCmd: 'notepad',
-    description: 'Text editor'
+    description: 'Text editor',
   },
   {
-    name: 'PowerShell',
-    paths: [
-      'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe',
-      'C:/Windows/System32/WindowsPowerShell/v1.0/pwsh.exe'
-    ],
+    name: 'PowerShell 7',
+    exe: 'pwsh',
+    paths: ['%PROGRAMFILES%/PowerShell/7/pwsh.exe'],
     launchCmd: 'pwsh',
-    description: 'PowerShell terminal'
-  }
+    description: 'PowerShell 7 terminal',
+  },
+  {
+    name: 'Windows PowerShell',
+    exe: 'powershell',
+    paths: ['%SYSTEMROOT%/System32/WindowsPowerShell/v1.0/powershell.exe'],
+    launchCmd: 'powershell',
+    description: 'Built-in PowerShell terminal',
+  },
 ];
 
-function findAppPath(app: AppInfo): string | null {
-  if (app.paths.length === 0) return null;
+// lstat rather than existsSync: App Execution Aliases (e.g. wt.exe) cannot be stat'ed but do exist.
+export function pathExists(target: string): boolean {
+  try {
+    fs.lstatSync(target);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-  for (const p of app.paths) {
-    if (p.includes('*')) {
-      const baseDir = path.dirname(p);
-      try {
-        if (fs.existsSync(baseDir)) {
-          const files = fs.readdirSync(baseDir);
-          const match = files.find(f => path.basename(p).replace('*', '') === f.substring(0, path.basename(p).indexOf('*') > -1 ? path.basename(p).indexOf('*') : f.length));
-          if (match) return path.join(baseDir, match);
-        }
-      } catch {}
-    } else if (fs.existsSync(p)) {
-      return p;
+function readDirSafe(dir: string): string[] {
+  try {
+    return fs.readdirSync(dir);
+  } catch {
+    return [];
+  }
+}
+
+function getEnv(env: Env, name: string): string | undefined {
+  const wanted = name.toLowerCase();
+  const key = Object.keys(env).find((candidate) => candidate.toLowerCase() === wanted);
+  return key === undefined ? undefined : env[key] || undefined;
+}
+
+function toPosix(value: string): string {
+  return value.replace(/\\/g, '/');
+}
+
+export function resolveOnPath(name: string, env: Env, exists: (target: string) => boolean): string | null {
+  const dirs = (getEnv(env, 'PATH') ?? '')
+    .split(';')
+    .map((dir) => dir.trim().replace(/^"(.*)"$/, '$1'))
+    .filter(Boolean);
+  const extensions = (getEnv(env, 'PATHEXT') ?? '.COM;.EXE;.BAT;.CMD')
+    .split(';')
+    .map((ext) => ext.trim().toLowerCase())
+    .filter(Boolean);
+
+  for (const dir of dirs) {
+    const base = toPosix(dir).replace(/\/+$/, '');
+    for (const ext of extensions) {
+      const candidate = `${base}/${name}${ext}`;
+      if (exists(candidate)) return candidate;
     }
   }
   return null;
+}
+
+function globToRegExp(segment: string): RegExp {
+  const escaped = segment.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+  return new RegExp(`^${escaped}$`, 'i');
+}
+
+// Expands %VAR% references and `*` path segments; the newest-looking directory name comes first.
+export function expandCandidates(
+  template: string,
+  env: Env,
+  readdir: (dir: string) => string[] = readDirSafe,
+): string[] {
+  let missing = false;
+  const substituted = template.replace(/%([^%]+)%/g, (_match, name: string) => {
+    const value = getEnv(env, name);
+    if (value === undefined) missing = true;
+    return value ?? '';
+  });
+  if (missing) return [];
+
+  const segments = toPosix(substituted).split('/').filter((segment) => segment !== '');
+
+  const walk = (prefix: string, rest: string[]): string[] => {
+    if (rest.length === 0) return [prefix];
+    const [segment, ...tail] = rest;
+    const join = (name: string) => (prefix === '' ? name : prefix.endsWith('/') ? prefix + name : `${prefix}/${name}`);
+
+    if (!segment.includes('*')) return walk(join(segment), tail);
+
+    const pattern = globToRegExp(segment);
+    const listing = prefix.endsWith(':') ? `${prefix}/` : prefix;
+    return readdir(listing)
+      .filter((name) => pattern.test(name))
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+      .flatMap((name) => walk(join(name), tail));
+  };
+
+  return walk('', segments);
+}
+
+export function detectApps(deps: DetectDeps = {}): DetectedApp[] {
+  const env = deps.env ?? process.env;
+  const exists = deps.exists ?? pathExists;
+  const readdir = deps.readdir ?? readDirSafe;
+
+  return APP_CATALOG.map((app) => {
+    const onPath = resolveOnPath(app.exe, env, exists);
+    if (onPath) return { app, foundPath: onPath };
+
+    for (const template of app.paths) {
+      const hit = expandCandidates(template, env, readdir).find((candidate) => exists(candidate));
+      if (hit) return { app, foundPath: hit };
+    }
+    return { app, foundPath: null };
+  });
+}
+
+function cell(value: string): string {
+  return value.replace(/\|/g, '\\|');
+}
+
+function registeredSection(): string[] {
+  let entries: LaunchEntry[];
+  try {
+    entries = listLaunch();
+  } catch (error) {
+    return ['### 已注册路径', '', `⚠ ${(error as Error).message}`, ''];
+  }
+
+  if (entries.length === 0) {
+    return ['### 已注册路径', '', '还没有注册。用 `hi path add <路径> --start <命令或脚本>` 添加，然后 `hi run <id>` 启动。', ''];
+  }
+
+  const md = [
+    '### 已注册路径',
+    '',
+    '| 状态 | ID | 名称 | 启动 | 路径 |',
+    '| :---: | --- | --- | --- | --- |',
+  ];
+  for (const entry of entries) {
+    const status = pathExists(entry.path) ? '✓' : '✗';
+    md.push(`| ${status} | ${cell(entry.id)} | ${cell(entry.name)} | \`hi run ${cell(entry.id)}\` | ${cell(entry.path)} |`);
+  }
+  md.push('');
+  return md;
 }
 
 export function getApps(): string {
@@ -152,14 +287,14 @@ export function getApps(): string {
     '| :---: | --- | --- | --- | --- |',
   ];
 
-  for (const app of COMMON_APPS) {
-    const foundPath = findAppPath(app);
+  for (const { app, foundPath } of detectApps()) {
     const status = foundPath ? '✓' : '○';
-    const pathStr = foundPath ? foundPath.replace(/\\/g, '/') : '—';
-    md.push(`| ${status} | ${app.name} | \`${app.launchCmd}\` | ${app.description} | ${pathStr} |`);
+    const pathStr = foundPath ?? '—';
+    md.push(`| ${status} | ${app.name} | \`${app.launchCmd}\` | ${app.description} | ${cell(pathStr)} |`);
   }
 
   md.push('');
+  md.push(...registeredSection());
   md.push('### 💡 Quick Launch Examples');
   md.push('');
   md.push('- `code .` — Open VS Code here');
@@ -167,6 +302,7 @@ export function getApps(): string {
   md.push('- `explorer .` — Open File Explorer here');
   md.push('- `wt` — Open Windows Terminal here');
   md.push('- `start chrome` — Open Chrome');
+  md.push('- `hi run <id>` — 在新终端中启动已注册路径');
 
   return renderMarkdown(md.join('\n'));
 }
