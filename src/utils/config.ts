@@ -9,6 +9,8 @@ export interface CliConfig {
   launch?: LaunchEntry[];
   // Validated and defaulted by src/settings; stored as-is so unknown future keys survive a round trip.
   settings?: unknown;
+  // Model provider credentials, see src/settings/provider.ts. Never printed by `hi config`.
+  provider?: unknown;
 }
 
 export class ConfigParseError extends Error {

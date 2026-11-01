@@ -31,6 +31,7 @@ entire source tree.
 | My-CLI file | Claude Code source reference | Adaptation boundary |
 | --- | --- | --- |
 | `src/chat/agent/definitions.ts` | `src/tools/AgentTool/builtInAgents.ts`, `src/tools/AgentTool/built-in/generalPurposeAgent.ts` | Keep local built-in and project agent metadata only. |
+| `src/chat/agent/host.ts` | `src/query.ts`, `src/QueryEngine.ts`, `src/components/permissions/PermissionPrompt.tsx` | Suspend on approval requests for a UI host; same tool pairing rules, no vendor state. |
 | `src/chat/agent/loop.ts` | `src/query.ts`, `src/QueryEngine.ts`, `src/services/tools/toolExecution.ts` | Keep provider-neutral tool pairing and stop conditions. |
 | `src/chat/agent/prompt.ts` | `src/tools/AgentTool/prompt.ts`, `src/context.ts` | Shape child task context without vendor state. |
 | `src/chat/agent/runner.ts` | `src/tools/AgentTool/runAgent.ts`, `src/tasks/LocalAgentTask/LocalAgentTask.tsx` | Run local subagents through scoped tool specs only. |
@@ -65,6 +66,7 @@ entire source tree.
 | `src/chat/terminal-ui.ts` | `src/components/design-system/Dialog.tsx`, `src/components/design-system/Divider.tsx` | Keep box/divider/status glyph grammar. |
 | `src/chat/tools.ts` | `src/tools.ts`, `src/Tool.ts`, `src/tools/FileReadTool/FileReadTool.ts` | Preserve read-only legacy tool compatibility. |
 | `src/chat/tools/fs-read.ts` | `src/tools/FileReadTool/FileReadTool.ts`, `src/tools/GrepTool/GrepTool.ts`, `src/tools/GlobTool/GlobTool.ts` | Keep workspace-safe list/read/search helpers. |
+| `src/chat/tools/diff.ts` | `src/tools/FileWriteTool/FileWriteTool.ts`, `src/tools/FileEditTool/FileEditTool.ts` | Local line diff for write previews with a size cap; no remote or telemetry use. |
 | `src/chat/tools/fs-write.ts` | `src/tools/FileWriteTool/FileWriteTool.ts`, `src/tools/FileEditTool/FileEditTool.ts` | Keep write permission previews and workspace bounds. |
 | `src/chat/tools/registry.ts` | `src/tools.ts`, `src/Tool.ts`, `src/tools/ExitPlanModeTool/ExitPlanModeV2Tool.ts` | Export provider schemas filtered by active mode. |
 | `src/chat/tools/runner.ts` | `src/services/tools/toolExecution.ts`, `src/services/tools/toolOrchestration.ts` | Return one structured result per tool call. |

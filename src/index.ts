@@ -32,6 +32,10 @@ import { handleApiGuide } from './modules/api';
 import { handlePayGuide } from './modules/pay';
 import { registerPathCommands, registerRunCommand } from './modules/launch';
 import { registerConfigCommand } from './settings/command';
+import { applyProviderToEnv } from './settings/provider';
+
+// Credentials saved from the desktop app fill in whatever the shell and .env left unset.
+applyProviderToEnv(process.env);
 
 const program = new Command();
 const VERSION = '0.7.0';
