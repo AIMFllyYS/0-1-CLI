@@ -399,7 +399,7 @@ export function createDesktopApi(deps: DesktopApiDeps) {
       }
     },
 
-    // Called once at startup: make the OS login item agree with the saved setting.
+    // Called once at startup: make the OS startup entry agree with the saved setting.
     async init(): Promise<void> {
       try {
         deps.setLoginItem(loadSettings().startup.desktopAutostart);
