@@ -7,7 +7,9 @@ const test = require('node:test');
 
 execFileSync('cmd.exe', ['/c', 'npm run build --silent'], { stdio: 'pipe' });
 
-const workspaceRoot = path.resolve('D:/new_project/My-CLI');
+// The engine resolves real paths, so the workspace must exist on disk.
+const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hi-permission-base-'));
+fs.writeFileSync(path.join(workspaceRoot, 'README.md'), '# fixture\n', 'utf8');
 
 function request(overrides) {
   return {
