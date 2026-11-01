@@ -38,7 +38,7 @@ import { applyProviderToEnv } from './settings/provider';
 applyProviderToEnv(process.env);
 
 const program = new Command();
-const VERSION = '0.7.0';
+const VERSION = '0.8.0';
 
 function renderChineseHelp(): string {
   return [

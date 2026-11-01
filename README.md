@@ -4,6 +4,13 @@
 
 这个项目的重点不是炫技，而是让第一次接触 CLI 的人也能知道下一步该做什么。
 
+## v0.8.0 — 桌面端重做、项目启动台、统一设置
+
+- **桌面端从零重做**：修复了让整个桌面端失效的 preload 加载错误；Agent 现在可以在应用内运行，每次改文件或执行命令前出现批准卡片（含 diff），支持流式回答、多会话并行、计划模式、浅色/深色主题。
+- **项目启动台**：`hi path add/list/rm` 登记项目目录和启动方式，`hi run <id>` 在新终端里一键拉起（优先 Windows Terminal，缺失时降级到 cmd）。
+- **统一设置**：`hi config` 与桌面端共用一份配置，包含开机自启动、AI 默认值、是否启动时先读取 GitHub、主题。
+- 完整变更见 [更新日志](docs/updates/CHANGELOG.md)。
+
 ## v0.7.0 — Claude Code 级别 UX 升级
 
 - **全面 Markdown 渲染**：所有 CLI 命令（`--state`、`--api`、`--pay`、`--install`、`--skills`、默认讲解、`--cli`、`--paths`、`--apps`）均使用基于 `marked` + `string-width` 的终端渲染引擎，支持表格、代码块、嵌套列表、引用块、中日韩字符宽度自动适配。
@@ -56,13 +63,13 @@ curl -fsSL https://raw.githubusercontent.com/AIMFllyYS/0-1-CLI/master/scripts/in
 如果你想固定安装某个发布版本，把链接里的 `master` 换成对应 tag，例如：
 
 ```powershell
-irm https://raw.githubusercontent.com/AIMFllyYS/0-1-CLI/v0.7.0/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/AIMFllyYS/0-1-CLI/v0.8.0/scripts/install.ps1 | iex
 ```
 
 macOS / Linux：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AIMFllyYS/0-1-CLI/v0.7.0/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AIMFllyYS/0-1-CLI/v0.8.0/scripts/install.sh | bash
 ```
 
 如果还没有发布 tag，就继续使用 `master` 安装最新主分支版本。

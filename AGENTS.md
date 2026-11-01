@@ -3,7 +3,7 @@
 ## Project Identity
 
 **Name:** My-CLI (`coding-cli` / `hi`)
-**Version:** 0.7.0
+**Version:** 0.8.0
 **Purpose:** 0→1 CLI — AI CLI onboarding and development toolbox, inspired by Claude Code but provider-neutral.
 
 ## Architecture

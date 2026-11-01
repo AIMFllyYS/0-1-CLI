@@ -1,6 +1,6 @@
 {
   "name": "coding-cli",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "0-1 CLI - AI CLI onboarding and development toolbox",
   "main": "src/index.ts",
   "bin": {

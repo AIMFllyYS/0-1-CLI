@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
 const test = require('node:test');
 
 test('default guide explains CLI onboarding in plain Chinese', () => {
@@ -19,12 +20,14 @@ test('default guide explains CLI onboarding in plain Chinese', () => {
 
 test('hi startup prints logo and zero-one welcome copy once before guide', () => {
   const output = execFileSync('node', ['dist/index.js'], { encoding: 'utf8' });
+  const version = JSON.parse(fs.readFileSync('package.json', 'utf8')).version.replace(/\./g, '\\.');
+  const banner = new RegExp(`0-1 CLI v${version}`, 'g');
 
   assert.match(output, /██████╗\s+██╗\s+██████╗██╗\s+██╗/);
-  assert.match(output, /0-1 CLI v0\.7\.0/);
+  assert.match(output, banner);
   assert.match(output, /树林曾云：从0到1是最贵的/);
   assert.match(output, /希望这个CLI可以帮助你从0到1入门AI-CLI工具/);
-  assert.equal((output.match(/0-1 CLI v0\.7\.0/g) || []).length, 1);
+  assert.equal((output.match(banner) || []).length, 1);
 });
 
 test('unhandled hi arguments print help instead of the default guide', () => {

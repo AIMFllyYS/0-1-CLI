@@ -50,7 +50,7 @@ function printNonInteractiveMenu(currentKey: string): void {
   console.log(renderMarkdown(lines.join('\n')));
 }
 
-export async function handleGuide(version = '0.7.0'): Promise<void> {
+export async function handleGuide(version = '0.8.0'): Promise<void> {
   let currentKey = DEFAULT_GUIDE_KEY;
   console.log(renderHomeHeader(version));
   printChapter(currentKey);
