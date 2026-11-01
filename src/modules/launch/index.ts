@@ -1,7 +1,9 @@
 import chalk from 'chalk';
 import type { Command } from 'commander';
 import { interactiveSelect } from '../../utils/selector';
+import { collectAddInput, createPrompter, normalizePathInput, PromptCancelled } from './interactive';
 import { addLaunch, findLaunch, formatLaunchList, listLaunch, removeLaunch } from './registry';
+import type { AddLaunchInput } from './registry';
 import { launchEntry, planLaunch } from './terminal';
 
 function renderPathHelp(): string {
@@ -12,7 +14,7 @@ function renderPathHelp(): string {
     '',
     '子命令：',
     '  list [--json]                     列出已注册的路径',
-    '  add <路径> [选项]                  注册一个路径',
+    '  add [路径] [选项]                  注册一个路径（省略路径或加 -i 进入交互模式）',
     '  show <id>                         查看单个注册项',
     '  rm <id>                           删除注册项',
     '',
@@ -24,6 +26,7 @@ function renderPathHelp(): string {
     '  --script                          强制把 --start 当作脚本文件',
     '  --shell <cmd|powershell>          指定 shell（.ps1 脚本默认 powershell，其余 cmd）',
     '  --close                           命令结束后不保留窗口（默认保留）',
+    '  -i, --interactive                 逐项提问，并根据目录内容预填启动方式',
     '',
   ].join('\n');
 }
@@ -56,7 +59,7 @@ export function registerPathCommands(program: Command): void {
     });
 
   pathCommand
-    .command('add <path>')
+    .command('add [path]')
     .description('注册一个路径')
     .option('--id <id>')
     .option('--name <name>')
@@ -65,7 +68,8 @@ export function registerPathCommands(program: Command): void {
     .option('--script')
     .option('--shell <shell>')
     .option('--close')
-    .action((target: string, opts: {
+    .option('-i, --interactive')
+    .action(async (target: string | undefined, opts: {
       id?: string;
       name?: string;
       start?: string;
@@ -73,26 +77,54 @@ export function registerPathCommands(program: Command): void {
       script?: boolean;
       shell?: string;
       close?: boolean;
+      interactive?: boolean;
     }) => {
       try {
         if (opts.cmd && opts.script) {
           throw new Error('--cmd 和 --script 不能同时使用');
         }
-        if ((opts.cmd || opts.script) && !opts.start) {
+        if ((opts.cmd || opts.script) && opts.start === undefined && !opts.interactive) {
           throw new Error('--cmd / --script 需要配合 --start 使用');
         }
-        const { entry, warnings } = addLaunch({
-          path: target,
+
+        const seed: Partial<AddLaunchInput> = {
+          path: target === undefined ? undefined : normalizePathInput(target, process.cwd()),
           id: opts.id,
           name: opts.name,
           start: opts.start,
           kind: opts.cmd ? 'command' : opts.script ? 'script' : undefined,
           shell: opts.shell,
           keepOpen: opts.close ? false : undefined,
-        });
+        };
+
+        const wantsPrompt = Boolean(opts.interactive) || (target === undefined && Boolean(process.stdin.isTTY));
+        let input: AddLaunchInput;
+        if (wantsPrompt) {
+          const prompter = createPrompter(process.stdin, process.stdout);
+          try {
+            input = await collectAddInput(seed, {
+              prompter,
+              existingIds: listLaunch().map((item) => item.id),
+              cwd: process.cwd(),
+              log: (message) => console.log(chalk.yellow(message)),
+            });
+          } finally {
+            prompter.close();
+          }
+        } else if (seed.path === undefined) {
+          throw new Error('请提供路径：hi path add <路径>，或加 -i 进入交互模式');
+        } else {
+          input = seed as AddLaunchInput;
+        }
+
+        const { entry, warnings } = addLaunch(input);
         for (const warning of warnings) console.log(chalk.yellow(`! ${warning}`));
         console.log(chalk.green(`✓ 已注册 ${entry.id}`) + chalk.gray(`  ${entry.path}`));
       } catch (error) {
+        if (error instanceof PromptCancelled) {
+          console.error(chalk.yellow('\n已取消，未保存。'));
+          process.exit(1);
+        }
         fail(error);
       }
     });

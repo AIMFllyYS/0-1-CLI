@@ -66,6 +66,18 @@ function resolveShell(requested: string | undefined, start: LaunchStart | undefi
   return start?.kind === 'script' && start.value.toLowerCase().endsWith('.ps1') ? 'powershell' : 'cmd';
 }
 
+export function assertDirectory(target: string): void {
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(target);
+  } catch {
+    throw new Error(`路径不存在：${target}`);
+  }
+  if (!stat.isDirectory()) {
+    throw new Error(`路径不是目录：${target}`);
+  }
+}
+
 export function buildEntry(input: AddLaunchInput, existing: Array<Pick<LaunchEntry, 'id'>>): BuiltEntry {
   const warnings: string[] = [];
 
@@ -73,15 +85,7 @@ export function buildEntry(input: AddLaunchInput, existing: Array<Pick<LaunchEnt
     throw new Error(`请提供绝对路径：${input.path}`);
   }
   const resolved = path.resolve(input.path);
-  let stat: fs.Stats;
-  try {
-    stat = fs.statSync(resolved);
-  } catch {
-    throw new Error(`路径不存在：${resolved}`);
-  }
-  if (!stat.isDirectory()) {
-    throw new Error(`路径不是目录：${resolved}`);
-  }
+  assertDirectory(resolved);
 
   const id = input.id ?? slugifyId(path.basename(resolved));
   if (!id) {
